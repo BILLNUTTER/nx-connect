@@ -13,7 +13,8 @@ export const userSchema = z.object({
   friends: z.array(z.string()).default([]),
   friendRequests: z.array(z.string()).default([]),
   sentRequests: z.array(z.string()).default([]),
-  createdAt: z.date().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 });
 
 export const insertUserSchema = userSchema.pick({
@@ -35,7 +36,8 @@ export const postSchema = z.object({
   author: userSchema.optional(),
   content: z.string(),
   likes: z.array(z.string()).default([]),
-  createdAt: z.date().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 });
 
 export const insertPostSchema = postSchema.pick({
@@ -48,7 +50,8 @@ export const commentSchema = z.object({
   authorId: z.string(),
   author: userSchema.optional(),
   content: z.string(),
-  createdAt: z.date().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 });
 
 export const insertCommentSchema = commentSchema.pick({
@@ -60,13 +63,15 @@ export const messageSchema = z.object({
   conversationId: z.string(),
   senderId: z.string(),
   content: z.string(),
-  createdAt: z.date().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 });
 
 export const conversationSchema = z.object({
   id: z.string(),
   participants: z.array(z.string()),
-  updatedAt: z.date().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 });
 
 export const notificationSchema = z.object({
@@ -77,7 +82,8 @@ export const notificationSchema = z.object({
   postId: z.string().optional(),
   content: z.string().optional(),
   read: z.boolean().default(false),
-  createdAt: z.date().optional(),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -87,7 +93,8 @@ export const forgotPasswordSchema = z.object({
   user: userSchema.optional(),
   desiredPassword: z.string(),
   status: z.enum(["pending", "resolved"]),
-  createdAt: z.date().optional()
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional()
 });
 
 export type User = z.infer<typeof userSchema>;
