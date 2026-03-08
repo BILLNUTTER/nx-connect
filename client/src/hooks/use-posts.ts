@@ -127,6 +127,7 @@ export function useHidePost() {
 }
 
 export function usePost(id: string) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: [api.posts.get.path, id],
     queryFn: async () => {
@@ -135,7 +136,31 @@ export function usePost(id: string) {
       return parseWithLogging(api.posts.get.responses[200], data, "posts.get");
     },
     enabled: !!id,
+    initialData: () => {
+      const list = queryClient.getQueryData<any[]>([api.posts.list.path]);
+      return list?.find((p: any) => p.id === id);
+    },
+    initialDataUpdatedAt: () => {
+      return queryClient.getQueryState([api.posts.list.path])?.dataUpdatedAt;
+    },
+    staleTime: 10_000,
   });
+}
+
+export function usePrefetchPost() {
+  const queryClient = useQueryClient();
+  return (id: string) => {
+    if (queryClient.getQueryData([api.posts.get.path, id])) return;
+    queryClient.prefetchQuery({
+      queryKey: [api.posts.get.path, id],
+      queryFn: async () => {
+        const url = buildUrl(api.posts.get.path, { id });
+        const data = await apiFetch(url);
+        return parseWithLogging(api.posts.get.responses[200], data, "posts.get");
+      },
+      staleTime: 10_000,
+    });
+  };
 }
 
 export function useComments(postId: string) {

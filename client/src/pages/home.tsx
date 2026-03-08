@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
+import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost } from "@/hooks/use-posts";
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
@@ -602,6 +602,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
   const likePost = useLikePost();
   const deletePost = useDeletePost();
   const hidePost = useHidePost();
+  const prefetchPost = usePrefetchPost();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const hasLiked = post.likes.includes(currentUserId || "");
@@ -620,7 +621,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
   }, []);
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden" data-testid={`post-card-${post.id}`}>
+    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden" data-testid={`post-card-${post.id}`} onMouseEnter={() => prefetchPost(post.id!)}>
       <div className="p-4 pb-3">
         <div className="flex items-center gap-3 mb-3">
           <button
