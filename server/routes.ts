@@ -308,6 +308,12 @@ export async function registerRoutes(
     await me.save();
     await requester.save();
 
+    // Mark the incoming friend_request notification as read
+    await Notification.updateMany(
+      { recipientId: userId, senderId: requesterId, type: 'friend_request' },
+      { $set: { read: true } }
+    );
+
     // Notify requester that their request was accepted
     const meUser = await User.findById(userId);
     await new Notification({
@@ -450,13 +456,22 @@ export async function registerRoutes(
   // Notifications
   app.get(api.notifications.list.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
+
+    // Auto-mark friend_request notifications as read if the friendship is already established
+    const me = await User.findById(userId);
+    if (me && me.friends.length > 0) {
+      await Notification.updateMany(
+        { recipientId: userId, type: 'friend_request', read: false, senderId: { $in: me.friends } },
+        { $set: { read: true } }
+      );
+    }
+
     const notifs = await Notification.find({ recipientId: userId })
       .populate('senderId', 'name username profilePicture id')
       .populate('postId', 'content id')
       .sort({ createdAt: -1 });
     const formatted = notifs.map(n => {
       const doc = n.toJSON() as any;
-      // Ensure sender info is accessible
       if (doc.senderId) {
         doc.sender = doc.senderId;
       }
