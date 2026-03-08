@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
+import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar } from "@/components/ui/shared";
-import { UserPlus, UserCheck, UserMinus } from "lucide-react";
+import { UserPlus, UserCheck, UserMinus, MessageSquare } from "lucide-react";
+import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
 
 export default function FriendsPage() {
@@ -64,17 +66,32 @@ function DiscoverTab() {
 function FriendsListTab() {
   const { data: users, isLoading } = useFriends();
   const unfriend = useUnfriend();
+  const getOrCreate = useGetOrCreateConversation();
+  const [, setLocation] = useLocation();
 
   if (isLoading) return <div className="col-span-full text-center py-10">Loading friends...</div>;
   if (!users?.length) return <div className="col-span-full text-center py-10 text-muted-foreground">You haven't added any friends yet.</div>;
 
   return users.map(user => (
     <UserCard key={user.id} user={user}>
-      <Button variant="secondary" size="sm" onClick={() => {
-        if(confirm(`Unfriend ${user.name}?`)) unfriend.mutate(user.id);
-      }} disabled={unfriend.isPending}>
-        <UserMinus className="w-4 h-4 mr-2" /> Unfriend
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={async () => {
+            const conv = await getOrCreate.mutateAsync(user.id as string);
+            setLocation(`/chats?conv=${conv.id}`);
+          }}
+          disabled={getOrCreate.isPending}
+          data-testid={`button-message-friend-${user.id}`}
+        >
+          <MessageSquare className="w-4 h-4 mr-1" /> Message
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => {
+          if (confirm(`Unfriend ${user.name}?`)) unfriend.mutate(user.id as string);
+        }} disabled={unfriend.isPending} data-testid={`button-unfriend-${user.id}`}>
+          <UserMinus className="w-4 h-4 mr-1" /> Unfriend
+        </Button>
+      </div>
     </UserCard>
   ));
 }

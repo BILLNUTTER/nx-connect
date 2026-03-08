@@ -37,8 +37,12 @@ export function useLikePost() {
       const data = await apiFetch(url, { method: "POST" });
       return parseWithLogging(api.posts.like.responses[200], data, "posts.like");
     },
-    onSuccess: () => {
+    onSuccess: (updatedPost: any) => {
       queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
+      if (updatedPost?.id) {
+        queryClient.setQueryData([api.posts.get.path, updatedPost.id], updatedPost);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
     },
   });
 }

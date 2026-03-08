@@ -28,7 +28,11 @@ export default function NotificationsPage() {
     const senderId = getSenderId(notif);
     const postId = getPostId(notif);
     if (notif.type === "friend_request") {
-      setLocation("/friends");
+      if (notif.read && senderId) {
+        setLocation(`/profile/${senderId}`);
+      } else {
+        setLocation("/friends");
+      }
     } else if (notif.type === "friend_accept" && senderId) {
       setLocation(`/profile/${senderId}`);
     } else if ((notif.type === "like" || notif.type === "comment") && postId) {
