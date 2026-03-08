@@ -192,12 +192,33 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
           </p>
         </button>
 
-        {post.likes.length > 0 && (
-          <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-              <ThumbsUp className="w-2.5 h-2.5 text-primary-foreground fill-current" />
-            </span>
-            {post.likes.length}
+        {(post.likes.length > 0 || (post as any).commentCount > 0) && (
+          <div className="mt-3 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              {post.likes.length > 0 && (
+                <span className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                  <ThumbsUp className="w-2.5 h-2.5 text-primary-foreground fill-current" />
+                </span>
+              )}
+              {post.likes.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  {(post as any).friendLike
+                    ? post.likes.length === 1
+                      ? (post as any).friendLike.name
+                      : `${(post as any).friendLike.name} and ${post.likes.length - 1} other${post.likes.length - 1 > 1 ? "s" : ""}`
+                    : post.likes.length}
+                </span>
+              )}
+            </div>
+            {(post as any).commentCount > 0 && (
+              <button
+                onClick={() => setLocation(`/post/${post.id}`)}
+                className="text-xs text-muted-foreground hover:underline"
+                data-testid={`text-comment-count-${post.id}`}
+              >
+                {(post as any).commentCount} comment{(post as any).commentCount !== 1 ? "s" : ""}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -224,6 +245,30 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
           Comment
         </button>
       </div>
+
+      {(post as any).latestComment && (
+        <div className="px-4 pb-3 pt-1">
+          <div className="flex gap-2 items-start">
+            <Avatar
+              url={(post as any).latestComment.author?.profilePicture}
+              name={(post as any).latestComment.author?.name || "U"}
+              size="sm"
+            />
+            <div className="flex-1 bg-secondary/50 rounded-2xl px-3 py-2">
+              <button
+                onClick={() => setLocation(`/profile/${(post as any).latestComment.author?.id}`)}
+                className="text-xs font-semibold text-foreground hover:underline"
+                data-testid={`button-comment-author-${post.id}`}
+              >
+                {(post as any).latestComment.author?.name}
+              </button>
+              <p className="text-xs text-foreground/90 mt-0.5 line-clamp-2">
+                {(post as any).latestComment.content}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

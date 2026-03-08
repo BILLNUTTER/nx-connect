@@ -124,15 +124,54 @@ export async function registerRoutes(
   // Post Routes
   app.get(api.posts.list.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
+    const me = await User.findById(userId).select('friends');
+    const friendSet = new Set<string>((me?.friends || []).map((f: any) => f.toString()));
+
     const posts = await Post.find({ $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }] })
       .populate('authorId', 'name username profilePicture').sort({ createdAt: -1 });
-    const formattedPosts = posts
-      .filter(p => p._id && p.authorId && p.content)
-      .map(p => {
-        const doc = p.toJSON();
-        doc.author = doc.authorId;
-        return doc;
-      });
+
+    const filteredPosts = posts.filter(p => p._id && p.authorId && p.content);
+    const postIds = filteredPosts.map(p => p._id);
+
+    const comments = await Comment.find({ postId: { $in: postIds } })
+      .populate('authorId', 'name username profilePicture')
+      .sort({ createdAt: -1 });
+
+    const commentsByPost: Record<string, { count: number; latest: any }> = {};
+    for (const c of comments) {
+      const pid = c.postId.toString();
+      if (!commentsByPost[pid]) commentsByPost[pid] = { count: 0, latest: null };
+      commentsByPost[pid].count++;
+      if (!commentsByPost[pid].latest) {
+        const cd = c.toJSON() as any;
+        cd.author = cd.authorId;
+        commentsByPost[pid].latest = cd;
+      }
+    }
+
+    const allFriendLikeIds = new Set<string>();
+    for (const p of filteredPosts) {
+      for (const likeId of p.likes) {
+        const id = likeId.toString();
+        if (friendSet.has(id)) allFriendLikeIds.add(id);
+      }
+    }
+    const friendLikers = await User.find({ _id: { $in: [...allFriendLikeIds] } }).select('name username profilePicture');
+    const friendLikerMap: Record<string, any> = {};
+    for (const fl of friendLikers) {
+      friendLikerMap[(fl._id as any).toString()] = { id: fl.id, name: (fl as any).name, profilePicture: (fl as any).profilePicture };
+    }
+
+    const formattedPosts = filteredPosts.map(p => {
+      const doc = p.toJSON() as any;
+      doc.author = doc.authorId;
+      const pid = (p._id as any).toString();
+      doc.commentCount = commentsByPost[pid]?.count || 0;
+      doc.latestComment = commentsByPost[pid]?.latest || null;
+      const friendLikeId = p.likes.map((id: any) => id.toString()).find((id: string) => friendLikerMap[id]);
+      doc.friendLike = friendLikeId ? friendLikerMap[friendLikeId] : null;
+      return doc;
+    });
     res.status(200).json(formattedPosts);
   });
 
@@ -507,7 +546,11 @@ export async function registerRoutes(
       );
     }
 
-    const notifs = await Notification.find({ recipientId: userId })
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const notifs = await Notification.find({
+      recipientId: userId,
+      $or: [{ read: false }, { createdAt: { $gte: twelveHoursAgo } }]
+    })
       .populate('senderId', 'name username profilePicture id')
       .populate('postId', 'content id')
       .sort({ createdAt: -1 });
