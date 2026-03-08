@@ -285,7 +285,6 @@ export default function LandingPage() {
               <a href="https://www.instagram.com/nutterx_?igsh=MTkwcWNya2Y0bTgzcw==" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors flex items-center gap-1"><Instagram className="w-3.5 h-3.5" /> Instagram</a>
               <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
               <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-              <Link href="/?admin=true" className="hover:text-foreground transition-colors">Admin</Link>
             </div>
           </div>
           <div className="text-center text-xs text-muted-foreground mt-6 pt-6 border-t border-border/30">
