@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
 import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post, DailyPhoto } from "@shared/schema";
@@ -589,7 +589,7 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
           data-testid={`button-open-post-${post.id}`}
         >
           <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
-            {post.content}
+            <LinkedText text={post.content} />
           </p>
         </button>
 

@@ -83,3 +83,35 @@ export function Avatar({
     </div>
   );
 }
+
+const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+|www\.[a-zA-Z0-9][^\s<>"{}|\\^`[\]]*)/gi;
+
+export function LinkedText({ text, className, linkClassName }: {
+  text: string;
+  className?: string;
+  linkClassName?: string;
+}) {
+  const parts = text.split(URL_REGEX);
+  return (
+    <span className={className}>
+      {parts.map((part, i) => {
+        if (/^https?:\/\//i.test(part) || /^www\.[a-zA-Z0-9]/i.test(part)) {
+          const href = /^www\./i.test(part) ? `https://${part}` : part;
+          return (
+            <a
+              key={i}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className={linkClassName ?? "text-primary underline underline-offset-2 hover:no-underline break-all"}
+            >
+              {part}
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </span>
+  );
+}

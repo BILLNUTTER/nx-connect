@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { useUserProfile, useUserPosts, useSendFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
-import { Card, Button, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
 import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare, EyeOff, Eye, Trash2 } from "lucide-react";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import type { Post } from "@shared/schema";
@@ -131,7 +131,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId?: string 
           className="flex-1 text-left"
           data-testid={`button-open-post-${post.id}`}
         >
-          <p className="text-lg whitespace-pre-wrap line-clamp-5">{post.content}</p>
+          <p className="text-lg whitespace-pre-wrap line-clamp-5"><LinkedText text={post.content} /></p>
         </button>
         {isOwn && (
           <div className="flex gap-1 ml-2 shrink-0">

@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserPosts } from "@/hooks/use-users";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
-import { Card, Button, Input, Avatar, TimeAgo } from "@/components/ui/shared";
+import { Card, Button, Input, Avatar, TimeAgo, LinkedText } from "@/components/ui/shared";
 import { Camera, LogOut, Pencil, X, User, AtSign, Phone, Mail, Users, Eye, EyeOff, Trash2, ThumbsUp, MessageCircle, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post } from "@shared/schema";
@@ -272,7 +272,7 @@ function OwnPostCard({ post, currentUserId }: { post: Post; currentUserId?: stri
           className="w-full text-left"
           data-testid={`button-open-post-${post.id}`}
         >
-          <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground line-clamp-5">{post.content}</p>
+          <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground line-clamp-5"><LinkedText text={post.content} /></p>
         </button>
       </div>
 

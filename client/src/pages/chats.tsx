@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
-import { Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
+import { Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
 import { Send, MessageSquare } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 
@@ -175,7 +175,10 @@ function ActiveChat({
               <div className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
                 isMe ? "bg-primary text-white rounded-br-sm" : "bg-card border border-border/50 text-foreground rounded-bl-sm"
               }`}>
-                {msg.content}
+                <LinkedText
+                  text={msg.content}
+                  linkClassName={isMe ? "text-white underline underline-offset-2 hover:no-underline break-all opacity-90" : "text-primary underline underline-offset-2 hover:no-underline break-all"}
+                />
               </div>
               <div className="text-[10px] text-muted-foreground mt-1 mx-1">
                 <TimeAgo date={msg.createdAt!} />

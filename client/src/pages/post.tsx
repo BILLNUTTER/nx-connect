@@ -4,7 +4,7 @@ import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, use
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
 import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye } from "lucide-react";
 
 export default function PostPage() {
@@ -121,7 +121,7 @@ export default function PostPage() {
           </div>
         </div>
 
-        <p className="text-xl leading-relaxed whitespace-pre-wrap mb-6" data-testid="text-post-content">{post.content}</p>
+        <p className="text-xl leading-relaxed whitespace-pre-wrap mb-6" data-testid="text-post-content"><LinkedText text={post.content} /></p>
 
         <div className="flex items-center gap-4 pt-4 border-t border-border/50">
           <button
