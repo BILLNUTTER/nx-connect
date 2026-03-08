@@ -168,7 +168,7 @@ export const dailyPhotoSchema = z.object({
 }).passthrough();
 
 export const insertDailyPhotoSchema = z.object({
-  imageUrl: z.string().url("Please provide a valid image URL"),
+  imageUrl: z.string().min(1, "Please select or provide an image"),
   caption: z.string().max(300).optional(),
 });
 

@@ -188,17 +188,63 @@ function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => voi
   );
 }
 
+function compressImage(file: File, maxWidth = 1080, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function AddPhotoModal({ onClose }: { onClose: () => void }) {
   const createPhoto = useCreatePhoto();
   const { toast } = useToast();
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageData, setImageData] = useState("");
   const [caption, setCaption] = useState("");
-  const [preview, setPreview] = useState(false);
+  const [urlMode, setUrlMode] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [compressing, setCompressing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+      return;
+    }
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(file);
+      setImageData(compressed);
+      setUrlMode(false);
+    } catch {
+      toast({ title: "Error", description: "Could not read image.", variant: "destructive" });
+    } finally {
+      setCompressing(false);
+    }
+  };
+
+  const finalImageUrl = urlMode ? urlInput.trim() : imageData;
 
   const handleSubmit = async () => {
-    if (!imageUrl.trim()) return;
+    if (!finalImageUrl) return;
     try {
-      await createPhoto.mutateAsync({ imageUrl: imageUrl.trim(), caption: caption.trim() || undefined });
+      await createPhoto.mutateAsync({ imageUrl: finalImageUrl, caption: caption.trim() || undefined });
       toast({ title: "Story posted!", description: "It will disappear in 24 hours." });
       onClose();
     } catch (err: any) {
@@ -235,38 +281,87 @@ function AddPhotoModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="p-5 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Image URL</label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => { setImageUrl(e.target.value); setPreview(false); }}
-                onBlur={() => imageUrl.trim() && setPreview(true)}
-                placeholder="https://example.com/photo.jpg"
-                className="flex-1 bg-secondary/60 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary transition-colors"
-                data-testid="input-photo-url"
-              />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+            data-testid="input-file-gallery"
+          />
+
+          {!imageData && !urlMode ? (
+            <div className="space-y-3">
               <button
-                onClick={() => imageUrl.trim() && setPreview(p => !p)}
-                className="px-3 py-2.5 bg-secondary hover:bg-secondary/80 rounded-xl transition-colors text-muted-foreground"
-                data-testid="button-preview-photo"
-                title="Preview"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-3 py-8 border-2 border-dashed border-border hover:border-primary/60 hover:bg-primary/5 rounded-2xl transition-colors group"
+                data-testid="button-pick-from-gallery"
+                disabled={compressing}
               >
-                <Image className="w-4 h-4" />
+                {compressing ? (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm">Processing image...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground group-hover:text-primary transition-colors">
+                    <Image className="w-10 h-10" />
+                    <span className="font-semibold text-sm">Choose from gallery</span>
+                    <span className="text-xs opacity-70">Tap to select a photo</span>
+                  </div>
+                )}
+              </button>
+              <button
+                onClick={() => setUrlMode(true)}
+                className="w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors py-1"
+                data-testid="button-use-url-instead"
+              >
+                Or paste an image URL instead
               </button>
             </div>
-          </div>
+          ) : urlMode ? (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <label className="block text-sm font-medium flex-1">Image URL</label>
+                <button onClick={() => setUrlMode(false)} className="text-xs text-muted-foreground hover:text-foreground">← Back</button>
+              </div>
+              <input
+                type="url"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://example.com/photo.jpg"
+                className="w-full bg-secondary/60 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary transition-colors"
+                data-testid="input-photo-url"
+                autoFocus
+              />
+            </div>
+          ) : null}
 
-          {preview && imageUrl && (
-            <div className="rounded-xl overflow-hidden border border-border bg-secondary/30">
+          {(imageData || (urlMode && urlInput)) && (
+            <div className="relative rounded-2xl overflow-hidden border border-border bg-secondary/30 group">
               <img
-                src={imageUrl}
+                src={finalImageUrl}
                 alt="Preview"
-                className="w-full max-h-56 object-cover"
-                onError={() => setPreview(false)}
+                className="w-full max-h-64 object-cover"
+                onError={() => { setImageData(""); setUrlInput(""); }}
                 data-testid="img-photo-preview"
               />
+              <button
+                onClick={() => { setImageData(""); setUrlInput(""); setUrlMode(false); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                className="absolute top-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors"
+                data-testid="button-remove-photo"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="absolute bottom-2 left-2">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs bg-black/60 hover:bg-black/80 text-white px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5"
+                  data-testid="button-change-photo"
+                >
+                  <Camera className="w-3 h-3" /> Change photo
+                </button>
+              </div>
             </div>
           )}
 
@@ -293,7 +388,7 @@ function AddPhotoModal({ onClose }: { onClose: () => void }) {
         <div className="px-5 pb-5">
           <Button
             onClick={handleSubmit}
-            disabled={!imageUrl.trim() || createPhoto.isPending}
+            disabled={!finalImageUrl || createPhoto.isPending}
             className="w-full"
             data-testid="button-submit-photo"
           >
