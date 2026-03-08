@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
-import { Avatar, TimeAgo } from "@/components/ui/shared";
+import { Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
 import { Send, MessageSquare } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 
@@ -51,7 +51,7 @@ export default function ChatsPage() {
                   data-testid={`conv-item-${conv.id}`}
                 >
                   <div className="relative shrink-0">
-                    <Avatar url={conv.otherUser?.profilePicture} name={conv.otherUser?.name || "U"} />
+                    <Avatar url={conv.otherUser?.profilePicture} name={conv.otherUser?.name || "U"} online={isOnline(conv.otherUser?.lastSeen)} />
                     {hasUnread && !isActive && (
                       <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-card" />
                     )}
@@ -141,7 +141,7 @@ function ActiveChat({
             className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-xl px-1 py-0.5"
             data-testid={`button-chat-view-profile-${otherUser.id || otherUser._id}`}
           >
-            <Avatar url={otherUser.profilePicture} name={otherUser.name || "U"} size="sm" />
+            <Avatar url={otherUser.profilePicture} name={otherUser.name || "U"} size="sm" online={isOnline(otherUser?.lastSeen)} />
             <div className="text-left">
               <div className="font-bold hover:text-primary transition-colors">{otherUser.name}</div>
               <div className="text-xs text-muted-foreground">@{otherUser.username} · tap to view profile</div>

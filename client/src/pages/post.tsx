@@ -4,7 +4,7 @@ import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, use
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
 import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye } from "lucide-react";
 
 export default function PostPage() {
@@ -70,7 +70,7 @@ export default function PostPage() {
               className="hover:opacity-80 transition-opacity"
               data-testid="button-post-author-avatar"
             >
-              <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} />
+              <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
             </button>
             <div>
               <button

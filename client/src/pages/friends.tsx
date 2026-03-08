@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
-import { Card, Button, Avatar } from "@/components/ui/shared";
+import { Card, Button, Avatar, isOnline } from "@/components/ui/shared";
 import { UserPlus, UserCheck, UserMinus, MessageSquare } from "lucide-react";
 import { useLocation } from "wouter";
 import type { User } from "@shared/schema";
@@ -122,7 +122,7 @@ function UserCard({ user, children }: { user: User, children: React.ReactNode })
         className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/40"
         data-testid={`button-view-profile-${user.id}`}
       >
-        <Avatar url={user.profilePicture} name={displayName} size="lg" />
+        <Avatar url={user.profilePicture} name={displayName} size="lg" online={isOnline((user as any).lastSeen)} />
       </button>
       <div
         className="flex-1 cursor-pointer"

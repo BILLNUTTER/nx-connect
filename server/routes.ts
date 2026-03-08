@@ -128,13 +128,13 @@ export async function registerRoutes(
     const friendSet = new Set<string>((me?.friends || []).map((f: any) => f.toString()));
 
     const posts = await Post.find({ $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }] })
-      .populate('authorId', 'name username profilePicture').sort({ createdAt: -1 });
+      .populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 });
 
     const filteredPosts = posts.filter(p => p._id && p.authorId && p.content);
     const postIds = filteredPosts.map(p => p._id);
 
     const comments = await Comment.find({ postId: { $in: postIds } })
-      .populate('authorId', 'name username profilePicture')
+      .populate('authorId', 'name username profilePicture lastSeen')
       .sort({ createdAt: -1 });
 
     const commentsByPost: Record<string, { count: number; latest: any }> = {};
@@ -156,7 +156,7 @@ export async function registerRoutes(
         if (friendSet.has(id)) allFriendLikeIds.add(id);
       }
     }
-    const friendLikers = await User.find({ _id: { $in: [...allFriendLikeIds] } }).select('name username profilePicture');
+    const friendLikers = await User.find({ _id: { $in: [...allFriendLikeIds] } }).select('name username profilePicture lastSeen');
     const friendLikerMap: Record<string, any> = {};
     for (const fl of friendLikers) {
       friendLikerMap[(fl._id as any).toString()] = { id: fl.id, name: (fl as any).name, profilePicture: (fl as any).profilePicture };
@@ -192,7 +192,7 @@ export async function registerRoutes(
     if (post.authorId.toString() !== userId) return res.status(403).json({ message: "Forbidden" });
     post.hidden = !post.hidden;
     await post.save();
-    await post.populate('authorId', 'name username profilePicture');
+    await post.populate('authorId', 'name username profilePicture lastSeen');
     const doc = post.toJSON() as any;
     doc.author = doc.authorId;
     res.status(200).json(doc);
@@ -205,7 +205,7 @@ export async function registerRoutes(
     const post = new Post({ authorId: userId, content: input.content });
     await post.save();
     
-    await post.populate('authorId', 'name username profilePicture');
+    await post.populate('authorId', 'name username profilePicture lastSeen');
     const doc = post.toJSON() as any;
     doc.author = doc.authorId;
     
@@ -253,7 +253,7 @@ export async function registerRoutes(
 
   // Get single post
   app.get(api.posts.get.path, authenticate, async (req: Request, res: Response) => {
-    const post = await Post.findById(req.params.id).populate('authorId', 'name username profilePicture');
+    const post = await Post.findById(req.params.id).populate('authorId', 'name username profilePicture lastSeen');
     if (!post) return res.status(404).json({ message: "Not found" });
     const doc = post.toJSON() as any;
     doc.author = doc.authorId;
@@ -263,7 +263,7 @@ export async function registerRoutes(
   // Comments
   app.get(api.comments.list.path, authenticate, async (req: Request, res: Response) => {
     const comments = await Comment.find({ postId: req.params.postId })
-      .populate('authorId', 'name username profilePicture')
+      .populate('authorId', 'name username profilePicture lastSeen')
       .sort({ createdAt: 1 });
       
     const formatted = comments.map(c => {
@@ -286,7 +286,7 @@ export async function registerRoutes(
       content: input.content
     });
     await comment.save();
-    await comment.populate('authorId', 'name username profilePicture');
+    await comment.populate('authorId', 'name username profilePicture lastSeen');
     
     if (post.authorId.toString() !== userId) {
       const commenter = await User.findById(userId).select('name');
@@ -326,13 +326,13 @@ export async function registerRoutes(
 
   app.get(api.users.friends.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
-    const me = await User.findById(userId).populate('friends', 'name username profilePicture');
+    const me = await User.findById(userId).populate('friends', 'name username profilePicture lastSeen');
     res.status(200).json(me?.friends || []);
   });
 
   app.get(api.users.friendRequests.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
-    const me = await User.findById(userId).populate('friendRequests', 'name username profilePicture');
+    const me = await User.findById(userId).populate('friendRequests', 'name username profilePicture lastSeen');
     res.status(200).json(me?.friendRequests || []);
   });
 
@@ -455,7 +455,7 @@ export async function registerRoutes(
     const query: any = { authorId: req.params.id };
     if (!isOwner) query.$or = [{ hidden: false }, { hidden: { $exists: false } }];
     const posts = await Post.find(query)
-      .populate('authorId', 'name username profilePicture')
+      .populate('authorId', 'name username profilePicture lastSeen')
       .sort({ createdAt: -1 });
     const formatted = posts.map(p => {
       const doc = p.toJSON() as any;
@@ -469,7 +469,7 @@ export async function registerRoutes(
   app.get(api.chats.conversations.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const convos = await Conversation.find({ participants: userId })
-      .populate('participants', 'name username profilePicture')
+      .populate('participants', 'name username profilePicture lastSeen')
       .sort({ lastMessageAt: -1, updatedAt: -1 });
     
     const formatted = convos.map(c => {
@@ -582,7 +582,7 @@ export async function registerRoutes(
     const [users, posts] = await Promise.all([
       User.find({ $or: [{ name: regex }, { username: regex }] }).select('-password').limit(8),
       Post.find({ content: regex, $or: [{ hidden: false }, { hidden: { $exists: false } }] })
-        .populate('authorId', 'name username profilePicture').sort({ createdAt: -1 }).limit(8),
+        .populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 }).limit(8),
     ]);
     const formattedPosts = posts.map(p => {
       const doc = p.toJSON() as any;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions } from "@/hooks/use-admin";
 import { useUserPosts } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Input, Avatar, TimeAgo } from "@/components/ui/shared";
+import { Card, Button, Input, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
 import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, MessageCircle, X } from "lucide-react";
 import type { User } from "@shared/schema";
 
@@ -179,7 +179,7 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
             onClick={() => onSelectUser(u)}
             data-testid={`row-user-${u.id}`}
           >
-            <Avatar url={u.profilePicture} name={u.name || "U"} />
+            <Avatar url={u.profilePicture} name={u.name || "U"} online={isOnline((u as any).lastSeen)} />
             <div className="flex-1 min-w-0">
               <div className="font-bold truncate">{u.name}</div>
               <div className="text-sm text-muted-foreground">@{u.username} · {u.email}</div>

@@ -17,6 +17,7 @@ export const userSchema = z.object({
   friends: z.array(z.string()).default([]),
   friendRequests: z.array(z.string()).default([]),
   sentRequests: z.array(z.string()).default([]),
+  lastSeen: z.string().nullable().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();

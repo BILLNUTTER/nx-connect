@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from "@/hooks/use-notifications";
 import { useAcceptFriendRequest } from "@/hooks/use-users";
-import { Card, Button, TimeAgo, Avatar } from "@/components/ui/shared";
+import { Card, Button, TimeAgo, Avatar, isOnline } from "@/components/ui/shared";
 import { Bell, Heart, MessageCircle, UserPlus, Info, Check, CheckCheck, ExternalLink } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -114,7 +114,7 @@ export default function NotificationsPage() {
               </div>
 
               {senderObj && (
-                <Avatar url={senderObj.profilePicture} name={senderObj.name || "?"} size="sm" />
+                <Avatar url={senderObj.profilePicture} name={senderObj.name || "?"} size="sm" online={isOnline(senderObj?.lastSeen)} />
               )}
 
               <div className="flex-1 min-w-0">

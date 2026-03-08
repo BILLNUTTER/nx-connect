@@ -72,7 +72,7 @@ export default function ProfilePage() {
         <div className="px-6 pb-6 -mt-12">
           <div className="flex items-end justify-between mb-4">
             <div className="relative group">
-              <Avatar url={user.profilePicture} name={user.name} size="xl" />
+              <Avatar url={user.profilePicture} name={user.name} size="xl" online />
               <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
                 <Camera className="w-6 h-6 text-white" />
               </div>

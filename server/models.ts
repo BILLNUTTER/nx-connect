@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
   profilePicture: { type: String, default: "" },
   isAdmin: { type: Boolean, default: false },
   status: { type: String, enum: ["active", "restricted"], default: "active" },
+  lastSeen: { type: Date, default: null },
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   sentRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

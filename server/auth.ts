@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
+import { User } from "./models";
 
 const JWT_SECRET = process.env.JWT_SECRET || "nutterx_super_secret_key_12345";
 
@@ -17,6 +18,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     (req as any).userId = decoded.userId;
+    User.updateOne({ _id: decoded.userId }, { lastSeen: new Date() }).catch(() => {});
     next();
   } catch (error) {
     return res.status(401).json({ message: "Unauthorized" });

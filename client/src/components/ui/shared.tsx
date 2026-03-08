@@ -1,6 +1,11 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
 
+export function isOnline(lastSeen?: string | Date | null): boolean {
+  if (!lastSeen) return false;
+  return Date.now() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
+}
+
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`bg-card rounded-3xl p-5 shadow-lg shadow-black/5 border border-border/50 ${className}`}>
@@ -45,14 +50,36 @@ export function TimeAgo({ date }: { date: string | Date }) {
   );
 }
 
-export function Avatar({ url, name, size = "md" }: { url?: string; name: string; size?: "sm" | "md" | "lg" | "xl" }) {
+export function Avatar({
+  url,
+  name,
+  size = "md",
+  online,
+  className = "",
+}: {
+  url?: string;
+  name: string;
+  size?: "sm" | "md" | "lg" | "xl";
+  online?: boolean;
+  className?: string;
+}) {
   const sizes = { sm: "w-8 h-8 text-xs", md: "w-10 h-10 text-sm", lg: "w-14 h-14 text-base", xl: "w-24 h-24 text-2xl" };
+  const dotSizes = { sm: "w-2.5 h-2.5 border-[2px]", md: "w-3 h-3 border-2", lg: "w-3.5 h-3.5 border-2", xl: "w-5 h-5 border-[3px]" };
   const sizeClass = sizes[size];
-  
-  if (url) return <img src={url} alt={name} className={`${sizeClass} rounded-full object-cover shadow-sm`} />;
+  const dotClass = dotSizes[size];
+
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br from-primary/80 to-accent/80 flex items-center justify-center text-white font-bold shadow-sm`}>
-      {name.charAt(0).toUpperCase()}
+    <div className={`relative inline-flex shrink-0 ${className}`}>
+      {url ? (
+        <img src={url} alt={name} className={`${sizeClass} rounded-full object-cover shadow-sm`} />
+      ) : (
+        <div className={`${sizeClass} rounded-full bg-gradient-to-br from-primary/80 to-accent/80 flex items-center justify-center text-white font-bold shadow-sm`}>
+          {name.charAt(0).toUpperCase()}
+        </div>
+      )}
+      {online && (
+        <span className={`absolute bottom-0 right-0 ${dotClass} rounded-full bg-green-500 border-card shadow-sm`} />
+      )}
     </div>
   );
 }

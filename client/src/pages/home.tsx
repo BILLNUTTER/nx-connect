@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
 import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye } from "lucide-react";
 import type { Post } from "@shared/schema";
 
@@ -65,7 +65,7 @@ function CreatePostBox() {
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
       <div className="p-4">
         <div className="flex gap-3 items-start">
-          <Avatar url={user?.profilePicture} name={user?.name || "U"} />
+          <Avatar url={user?.profilePicture} name={user?.name || "U"} online />
           <button
             onClick={() => {}}
             className="flex-1 bg-secondary/60 hover:bg-secondary rounded-full px-4 py-2.5 text-left text-muted-foreground transition-colors cursor-text"
@@ -132,7 +132,7 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
             className="hover:opacity-80 transition-opacity shrink-0"
             data-testid={`button-author-avatar-${post.id}`}
           >
-            <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} />
+            <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
           </button>
           <div className="flex-1 min-w-0">
             <button
