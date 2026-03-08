@@ -21,7 +21,10 @@ const postSchema = new mongoose.Schema({
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   hidden: { type: Boolean, default: false },
   isAdminPost: { type: Boolean, default: false },
+  imageUrl: { type: String, default: null },
+  expiresAt: { type: Date, default: null },
 }, { timestamps: true });
+postSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0, partialFilterExpression: { expiresAt: { $type: "date" } } });
 
 const commentSchema = new mongoose.Schema({
   postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },

@@ -16,10 +16,10 @@ export function usePosts() {
 export function useCreatePost() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (content: string) => {
+    mutationFn: async ({ content, imageUrl }: { content: string; imageUrl?: string }) => {
       const data = await apiFetch(api.posts.create.path, {
         method: "POST",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, imageUrl }),
       });
       return parseWithLogging(api.posts.create.responses[201], data, "posts.create");
     },

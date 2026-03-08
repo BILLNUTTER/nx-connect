@@ -52,12 +52,15 @@ export const postSchema = z.object({
   content: z.string(),
   likes: z.array(z.string()).default([]),
   isAdminPost: z.boolean().optional(),
+  imageUrl: z.string().nullable().optional(),
+  expiresAt: z.string().nullable().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();
 
-export const insertPostSchema = postSchema.pick({
-  content: true,
+export const insertPostSchema = z.object({
+  content: z.string().min(1),
+  imageUrl: z.string().optional(),
 });
 
 export const commentSchema = z.object({

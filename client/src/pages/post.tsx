@@ -121,7 +121,19 @@ export default function PostPage() {
           </div>
         </div>
 
-        <p className="text-xl leading-relaxed whitespace-pre-wrap mb-6" data-testid="text-post-content"><LinkedText text={post.content} /></p>
+        {(post.content !== "📷" || !(post as any).imageUrl) && (
+          <p className="text-xl leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content"><LinkedText text={post.content} /></p>
+        )}
+        {(post as any).imageUrl && (
+          <div className="relative mb-6 rounded-2xl overflow-hidden border border-border/50">
+            <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[500px]" data-testid="img-post-detail" />
+            {(post as any).expiresAt && (
+              <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1.5">
+                <span>⏳ Expires <TimeAgo date={(post as any).expiresAt} /></span>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-4 pt-4 border-t border-border/50">
           <button

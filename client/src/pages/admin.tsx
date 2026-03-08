@@ -519,7 +519,14 @@ function UserPostsList({ userId, userName, onDeletePost }: { userId: string; use
                   </Button>
                 </div>
               </div>
-              <p className="text-foreground whitespace-pre-wrap text-sm"><LinkedText text={post.content} /></p>
+              {(post.content !== "📷" || !(post as any).imageUrl) && (
+                <p className="text-foreground whitespace-pre-wrap text-sm"><LinkedText text={post.content} /></p>
+              )}
+              {(post as any).imageUrl && (
+                <div className="mt-2 rounded-lg overflow-hidden border border-border/50">
+                  <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[300px]" />
+                </div>
+              )}
             </Card>
           ))}
         </div>
@@ -567,7 +574,14 @@ function AdminFeedView() {
               </Button>
             </div>
           </div>
-          <p className="text-foreground whitespace-pre-wrap text-sm"><LinkedText text={post.content} /></p>
+          {(post.content !== "📷" || !(post as any).imageUrl) && (
+            <p className="text-foreground whitespace-pre-wrap text-sm"><LinkedText text={post.content} /></p>
+          )}
+          {(post as any).imageUrl && (
+            <div className="mt-2 rounded-lg overflow-hidden border border-border/50">
+              <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[300px]" />
+            </div>
+          )}
         </Card>
       ))}
     </div>

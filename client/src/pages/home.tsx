@@ -403,20 +403,71 @@ function AddPhotoModal({ onClose }: { onClose: () => void }) {
 function CreatePostBox() {
   const [content, setContent] = useState("");
   const [composing, setComposing] = useState(false);
+  const [imageData, setImageData] = useState("");
+  const [compressing, setCompressing] = useState(false);
   const createPost = useCreatePost();
   const { user } = useAuth();
+  const { data: posts } = usePosts();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const openCompose = () => {
+  const hasPhotoToday = !!posts?.some(p => {
+    const authorId = (p.author as any)?.id || (p.authorId as any)?.id;
+    if (authorId !== user?.id) return false;
+    if (!(p as any).imageUrl) return false;
+    const created = new Date((p as any).createdAt!);
+    return Date.now() - created.getTime() < 24 * 60 * 60 * 1000;
+  });
+
+  const openCompose = (withPhoto = false) => {
     setComposing(true);
-    setTimeout(() => textareaRef.current?.focus(), 50);
+    if (withPhoto) {
+      if (hasPhotoToday) {
+        toast({ title: "Already posted a photo today", description: "You can post one photo per day. It disappears after 24 hours.", variant: "destructive" });
+        return;
+      }
+      setTimeout(() => fileInputRef.current?.click(), 50);
+    } else {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+      return;
+    }
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(file);
+      setImageData(compressed);
+    } catch {
+      toast({ title: "Error", description: "Could not read image.", variant: "destructive" });
+    } finally {
+      setCompressing(false);
+    }
   };
 
   const handleSubmit = async () => {
-    if (!content.trim()) return;
-    await createPost.mutateAsync(content);
-    setContent("");
-    setComposing(false);
+    if (!content.trim() && !imageData) return;
+    const finalContent = content.trim() || "📷";
+    try {
+      await createPost.mutateAsync({ content: finalContent, imageUrl: imageData || undefined });
+      setContent("");
+      setImageData("");
+      setComposing(false);
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("one photo") || msg.includes("photo per day")) {
+        toast({ title: "Already posted a photo today", description: "You can post one photo per day.", variant: "destructive" });
+      } else {
+        toast({ title: "Error posting", description: msg || "Something went wrong.", variant: "destructive" });
+      }
+    }
   };
 
   const autoResize = () => {
@@ -424,52 +475,92 @@ function CreatePostBox() {
     if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
   };
 
+  const cancelCompose = () => { setContent(""); setImageData(""); setComposing(false); };
+
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} data-testid="input-post-image-file" />
+
       <div className="p-4">
         <div className="flex gap-3 items-start">
           <Avatar url={user?.profilePicture} name={user?.name || "U"} online />
           {!composing ? (
             <button
-              onClick={openCompose}
+              onClick={() => openCompose(false)}
               className="flex-1 bg-secondary/60 hover:bg-secondary rounded-full px-4 py-2.5 text-left text-muted-foreground transition-colors cursor-text text-sm"
               data-testid="input-create-post-trigger"
             >
               What's on your mind, {user?.name?.split(" ")[0]}?
             </button>
           ) : (
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => { setContent(e.target.value); autoResize(); }}
-              onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSubmit(); }}
-              placeholder={`What's on your mind, ${user?.name?.split(" ")[0] || "you"}?`}
-              className="flex-1 bg-transparent resize-none outline-none text-base placeholder:text-muted-foreground min-h-[60px] leading-relaxed"
-              data-testid="input-create-post"
-              rows={2}
-            />
+            <div className="flex-1 space-y-3">
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => { setContent(e.target.value); autoResize(); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSubmit(); }}
+                placeholder={imageData ? "Add a caption (optional)..." : `What's on your mind, ${user?.name?.split(" ")[0] || "you"}?`}
+                className="w-full bg-transparent resize-none outline-none text-base placeholder:text-muted-foreground min-h-[60px] leading-relaxed"
+                data-testid="input-create-post"
+                rows={2}
+              />
+              {compressing && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Processing image...
+                </div>
+              )}
+              {imageData && (
+                <div className="relative rounded-xl overflow-hidden border border-border">
+                  <img src={imageData} alt="Preview" className="w-full max-h-60 object-cover" />
+                  <button
+                    onClick={() => setImageData("")}
+                    className="absolute top-2 right-2 w-7 h-7 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-colors"
+                    data-testid="button-remove-post-image"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                    <Camera className="w-3 h-3" /> Disappears in 24h
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
 
       {composing && (
         <div className="border-t border-border/50 px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-1 text-muted-foreground text-sm font-medium">
-            <Globe className="w-4 h-4 text-primary mr-1" />
-            Public
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 text-muted-foreground text-sm font-medium">
+              <Globe className="w-4 h-4 text-primary mr-1" />
+              Public
+            </div>
+            {!imageData && (
+              <button
+                onClick={() => {
+                  if (hasPhotoToday) {
+                    toast({ title: "Already posted a photo today", description: "One photo post per day.", variant: "destructive" });
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${hasPhotoToday ? "text-muted-foreground/50 cursor-not-allowed" : "text-primary hover:bg-primary/10"}`}
+                disabled={hasPhotoToday || compressing}
+                title={hasPhotoToday ? "Already posted a photo today" : "Add a photo (disappears in 24h)"}
+                data-testid="button-attach-photo"
+              >
+                <Image className="w-4 h-4" />
+                {hasPhotoToday ? "Photo used" : "Photo"}
+              </button>
+            )}
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setContent(""); setComposing(false); }}
-              data-testid="button-cancel-post"
-            >
-              Cancel
-            </Button>
+            <Button variant="ghost" size="sm" onClick={cancelCompose} data-testid="button-cancel-post">Cancel</Button>
             <Button
               onClick={handleSubmit}
-              disabled={!content.trim() || createPost.isPending}
+              disabled={(!content.trim() && !imageData) || createPost.isPending || compressing}
               data-testid="button-share-post"
               size="sm"
               className="px-5"
@@ -483,15 +574,17 @@ function CreatePostBox() {
       {!composing && (
         <div className="border-t border-border/50 px-4 py-2 flex items-center gap-1">
           <button
-            onClick={openCompose}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-secondary/60 transition-colors"
+            onClick={() => openCompose(true)}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-colors ${hasPhotoToday ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:bg-secondary/60"}`}
+            disabled={hasPhotoToday}
+            title={hasPhotoToday ? "Already posted a photo today" : "Photo post (disappears in 24h)"}
             data-testid="button-photo-post-shortcut"
           >
-            <Camera className="w-4 h-4 text-primary" />
-            Photo
+            <Camera className={`w-4 h-4 ${hasPhotoToday ? "text-muted-foreground/40" : "text-primary"}`} />
+            {hasPhotoToday ? "Photo used today" : "Photo"}
           </button>
           <button
-            onClick={openCompose}
+            onClick={() => openCompose(false)}
             className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-secondary/60 transition-colors"
             data-testid="button-text-post-shortcut"
           >
@@ -597,10 +690,24 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
           className="w-full text-left"
           data-testid={`button-open-post-${post.id}`}
         >
-          <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
-            <LinkedText text={post.content} />
-          </p>
+          {(post.content !== "📷" || !(post as any).imageUrl) && (
+            <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+              <LinkedText text={post.content} />
+            </p>
+          )}
         </button>
+
+        {(post as any).imageUrl && (
+          <div className="relative mt-2 rounded-xl overflow-hidden border border-border/50 cursor-pointer" onClick={() => setLocation(`/post/${post.id}`)} data-testid={`img-post-${post.id}`}>
+            <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[420px]" />
+            {(post as any).expiresAt && (
+              <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Camera className="w-2.5 h-2.5" />
+                <span>Expires in <TimeAgo date={(post as any).expiresAt} /></span>
+              </div>
+            )}
+          </div>
+        )}
 
         {(post.likes.length > 0 || (post as any).commentCount > 0) && (
           <div className="mt-3 flex items-center justify-between">

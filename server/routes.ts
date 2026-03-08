@@ -124,8 +124,13 @@ export async function registerRoutes(
     const me = await User.findById(userId).select('friends');
     const friendSet = new Set<string>((me?.friends || []).map((f: any) => f.toString()));
 
-    const posts = await Post.find({ $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }, { isAdminPost: true }] })
-      .populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 });
+    const now = new Date();
+    const posts = await Post.find({
+      $and: [
+        { $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }, { isAdminPost: true }] },
+        { $or: [{ expiresAt: null }, { expiresAt: { $exists: false } }, { expiresAt: { $gt: now } }] }
+      ]
+    }).populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 });
 
     const filteredPosts = posts.filter(p => p._id && p.authorId && p.content);
     const postIds = filteredPosts.map(p => p._id);
@@ -199,8 +204,19 @@ export async function registerRoutes(
   app.post(api.posts.create.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const input = api.posts.create.input.parse(req.body);
+
+    let expiresAt: Date | null = null;
+    if (input.imageUrl) {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const existing = await Post.findOne({ authorId: userId, imageUrl: { $ne: null, $exists: true }, createdAt: { $gte: since } });
+      if (existing) {
+        const nextAllowed = new Date(existing.createdAt!.getTime() + 24 * 60 * 60 * 1000);
+        return res.status(429).json({ message: "You can only post one photo per day.", nextAllowed: nextAllowed.toISOString() });
+      }
+      expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
     
-    const post = new Post({ authorId: userId, content: input.content });
+    const post = new Post({ authorId: userId, content: input.content, imageUrl: input.imageUrl || null, expiresAt });
     await post.save();
     
     await post.populate('authorId', 'name username profilePicture lastSeen');
