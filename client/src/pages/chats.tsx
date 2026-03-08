@@ -155,6 +155,15 @@ function ActiveChat({
           </div>
         )}
         {messages?.map(msg => {
+          if (msg.isSystem || msg.content.startsWith('🎉')) {
+            return (
+              <div key={msg.id} className="flex justify-center my-2">
+                <span className="text-xs text-muted-foreground/60 italic bg-muted/30 px-4 py-1.5 rounded-full">
+                  {msg.content}
+                </span>
+              </div>
+            );
+          }
           const isMe = msg.senderId === currentUserId;
           return (
             <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>

@@ -1,13 +1,14 @@
 import { useLocation } from "wouter";
 import { useUserProfile, useUserPosts, useSendFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
+import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
-import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle } from "lucide-react";
+import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare } from "lucide-react";
 import { useLikePost } from "@/hooks/use-posts";
 import type { Post } from "@shared/schema";
 
 export default function UserProfilePage() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const id = location.split("/profile/")[1];
   const { user: currentUser } = useAuth();
   const { data: currentUserFull } = useAuthUser();
@@ -15,6 +16,7 @@ export default function UserProfilePage() {
   const { data: posts, isLoading: postsLoading } = useUserPosts(id);
   const sendReq = useSendFriendRequest();
   const unfriend = useUnfriend();
+  const getOrCreate = useGetOrCreateConversation();
 
   if (!id || isLoading) return (
     <div className="max-w-2xl mx-auto text-center py-20 text-muted-foreground animate-pulse">Loading profile...</div>
@@ -64,11 +66,23 @@ export default function UserProfilePage() {
         </div>
 
         {!isSelf && (
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 flex-wrap">
             {isFriend ? (
-              <Button variant="outline" onClick={() => unfriend.mutate(id)} disabled={unfriend.isPending} data-testid="button-unfriend">
-                <UserMinus className="w-4 h-4 mr-2" /> Unfriend
-              </Button>
+              <>
+                <Button variant="outline" onClick={() => unfriend.mutate(id)} disabled={unfriend.isPending} data-testid="button-unfriend">
+                  <UserMinus className="w-4 h-4 mr-2" /> Unfriend
+                </Button>
+                <Button
+                  onClick={async () => {
+                    const conv = await getOrCreate.mutateAsync(id);
+                    setLocation(`/chats?conv=${conv.id}`);
+                  }}
+                  disabled={getOrCreate.isPending}
+                  data-testid="button-message-user"
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" /> Message
+                </Button>
+              </>
             ) : hasSentRequest ? (
               <Button variant="outline" disabled data-testid="button-request-sent">
                 <UserCheck className="w-4 h-4 mr-2" /> Request Sent

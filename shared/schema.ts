@@ -87,6 +87,7 @@ export const messageSchema = z.object({
   conversationId: z.string(),
   senderId: z.string(),
   content: z.string(),
+  isSystem: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 });
