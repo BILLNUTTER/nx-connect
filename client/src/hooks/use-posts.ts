@@ -37,10 +37,48 @@ export function useLikePost() {
       const data = await apiFetch(url, { method: "POST" });
       return parseWithLogging(api.posts.like.responses[200], data, "posts.like");
     },
+    onMutate: async (postId: string) => {
+      const currentUser = queryClient.getQueryData([api.auth.me.path]) as any;
+      const userId = currentUser?.id;
+
+      await queryClient.cancelQueries({ queryKey: [api.posts.list.path] });
+      await queryClient.cancelQueries({ queryKey: [api.posts.get.path, postId] });
+
+      const prevList = queryClient.getQueryData([api.posts.list.path]);
+      const prevPost = queryClient.getQueryData([api.posts.get.path, postId]);
+
+      const toggle = (post: any) => {
+        if (!post || !userId) return post;
+        const hasLiked = post.likes.includes(userId);
+        return {
+          ...post,
+          likes: hasLiked
+            ? post.likes.filter((id: string) => id !== userId)
+            : [...post.likes, userId],
+        };
+      };
+
+      queryClient.setQueryData([api.posts.list.path], (old: any) =>
+        Array.isArray(old) ? old.map((p: any) => p.id === postId ? toggle(p) : p) : old
+      );
+      queryClient.setQueryData([api.posts.get.path, postId], toggle);
+
+      return { prevList, prevPost, postId };
+    },
+    onError: (_err: any, _postId: any, context: any) => {
+      if (context?.prevList !== undefined) {
+        queryClient.setQueryData([api.posts.list.path], context.prevList);
+      }
+      if (context?.prevPost !== undefined) {
+        queryClient.setQueryData([api.posts.get.path, context.postId], context.prevPost);
+      }
+    },
     onSuccess: (updatedPost: any) => {
-      queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
       if (updatedPost?.id) {
         queryClient.setQueryData([api.posts.get.path, updatedPost.id], updatedPost);
+        queryClient.setQueryData([api.posts.list.path], (old: any) =>
+          Array.isArray(old) ? old.map((p: any) => p.id === updatedPost.id ? updatedPost : p) : old
+        );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
     },
