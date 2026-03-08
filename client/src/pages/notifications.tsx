@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNotifications, useMarkNotificationRead } from "@/hooks/use-notifications";
 import { useAcceptFriendRequest } from "@/hooks/use-users";
 import { Card, Button, TimeAgo, Avatar } from "@/components/ui/shared";
@@ -9,6 +10,7 @@ export default function NotificationsPage() {
   const markRead = useMarkNotificationRead();
   const acceptRequest = useAcceptFriendRequest();
   const [, setLocation] = useLocation();
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
 
   if (isLoading) return <div className="text-center py-10">Loading notifications...</div>;
 
@@ -82,8 +84,11 @@ export default function NotificationsPage() {
                 <div className="mt-1 text-xs text-primary font-medium">
                   <TimeAgo date={notif.createdAt!} />
                 </div>
-                {isFriendRequest && (
+                {isFriendRequest && !notif.read && (
                   <p className="text-xs text-muted-foreground mt-1">Tap to view request</p>
+                )}
+                {isFriendRequest && notif.read && (
+                  <p className="text-xs text-green-600 font-medium mt-1">Already friends</p>
                 )}
                 {(notif.type === "friend_accept") && senderId && (
                   <p className="text-xs text-muted-foreground mt-1">Tap to view profile</p>
@@ -94,19 +99,23 @@ export default function NotificationsPage() {
                 {!notif.read && (
                   <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-primary/50" />
                 )}
-                {isFriendRequest && senderId && (
+                {isFriendRequest && !notif.read && senderId && (
                   <Button
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      acceptRequest.mutate(senderId);
+                      setAcceptingId(notif.id);
+                      acceptRequest.mutate(senderId, {
+                        onSettled: () => setAcceptingId(null),
+                      });
                       markRead.mutate(notif.id);
                     }}
-                    disabled={acceptRequest.isPending}
-                    data-testid="button-accept-request"
+                    disabled={acceptingId === notif.id}
+                    data-testid={`button-accept-request-${notif.id}`}
                     className="text-xs px-3 py-1 h-auto"
                   >
-                    <Check className="w-3 h-3 mr-1" /> Accept
+                    <Check className="w-3 h-3 mr-1" />
+                    {acceptingId === notif.id ? "Accepting..." : "Accept"}
                   </Button>
                 )}
               </div>
