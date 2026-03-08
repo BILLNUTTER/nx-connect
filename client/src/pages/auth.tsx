@@ -52,7 +52,7 @@ export default function AuthPage() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-display font-bold text-3xl shadow-xl shadow-primary/30 mb-4">
             NX
           </div>
-          <h1 className="text-3xl font-display font-bold">Welcome to NutterX</h1>
+          <h1 className="text-3xl font-display font-bold">Welcome to NX-Connect</h1>
         </div>
 
         <Card className="p-8">

@@ -544,7 +544,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
                 className="font-semibold text-foreground hover:underline text-left text-sm"
                 data-testid={`button-author-name-${post.id}`}
               >
-                {isAdminPost ? "NutterX Official" : post.author?.name}
+                {isAdminPost ? "NX-Connect" : post.author?.name}
               </button>
               {isAdminPost && (
                 <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full font-bold border border-primary/20">OFFICIAL</span>

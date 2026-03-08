@@ -78,7 +78,7 @@ function SearchBar() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onFocus={() => results && setOpen(true)}
-          placeholder="Search NUTTERX..."
+          placeholder="Search NX-Connect..."
           className="w-full bg-secondary/70 border border-border/50 rounded-full pl-9 pr-9 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all placeholder:text-muted-foreground"
           data-testid="input-search"
         />
@@ -210,7 +210,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-display font-bold text-lg shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
                 NX
               </div>
-              <span className="font-display font-bold text-lg hidden sm:block text-foreground tracking-tight">NUTTERX</span>
+              <span className="font-display font-bold text-lg hidden sm:block text-foreground tracking-tight">NX-Connect</span>
             </Link>
 
             <SearchBar />

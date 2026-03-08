@@ -52,7 +52,7 @@ export default function AdminDashboard() {
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-4xl font-display font-bold text-gradient">NutterX Command Center</h1>
+          <h1 className="text-4xl font-display font-bold text-gradient">NX-Connect Command Center</h1>
           <p className="text-muted-foreground mt-2">Manage users, oversee content, and handle requests.</p>
         </div>
         <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl font-bold flex items-center gap-2 border border-primary/20">
@@ -211,7 +211,7 @@ function PasswordRequests() {
   const { resolvePassword } = useAdminActions();
   const { toast } = useToast();
   const [passwords, setPasswords] = useState<Record<string, string>>({});
-  const [revealedPhones, setRevealedPhones] = useState<Record<string, string>>({});
+  const [resolved, setResolved] = useState<Record<string, { phone: string; password: string }>>({});
 
   const handleApprove = async (reqId: string) => {
     const pw = passwords[reqId];
@@ -221,9 +221,9 @@ function PasswordRequests() {
     }
     const result = await resolvePassword.mutateAsync({ id: reqId, password: pw });
     const phone = result?.phone || "";
-    if (phone) setRevealedPhones(prev => ({ ...prev, [reqId]: phone }));
+    setResolved(prev => ({ ...prev, [reqId]: { phone, password: pw } }));
     setPasswords(prev => ({ ...prev, [reqId]: "" }));
-    toast({ title: "Password set!", description: phone ? `Send '${pw}' to ${phone} externally.` : "Password updated successfully." });
+    toast({ title: "Password set!", description: "Copy the password and send it to the user via WhatsApp." });
   };
 
   const copyToClipboard = (text: string) => {
@@ -259,10 +259,32 @@ function PasswordRequests() {
               </div>
             </div>
 
-            {revealedPhones[req.id] ? (
-              <div className="bg-green-500/10 text-green-600 p-3 rounded-xl text-sm font-medium border border-green-500/20">
-                ✓ Password set. Send via phone: <span className="font-bold">{revealedPhones[req.id]}</span>
-                <button onClick={() => copyToClipboard(revealedPhones[req.id])} className="ml-2 underline text-green-700">copy</button>
+            {resolved[req.id] ? (
+              <div className="bg-green-500/10 border border-green-500/20 p-4 rounded-xl space-y-3">
+                <div className="text-green-700 font-bold text-sm flex items-center gap-1">✓ Password set — send to user via WhatsApp</div>
+                <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border">
+                  <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wide w-20 shrink-0">New Password</span>
+                  <span className="font-mono font-bold text-foreground flex-1">{resolved[req.id].password}</span>
+                  <button onClick={() => copyToClipboard(resolved[req.id].password)} className="text-primary hover:opacity-70 shrink-0" data-testid={`button-copy-password-${req.id}`}><Copy className="w-4 h-4" /></button>
+                </div>
+                {resolved[req.id].phone && (
+                  <div className="flex items-center gap-2 bg-background rounded-lg px-3 py-2 border border-border">
+                    <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wide w-20 shrink-0">WhatsApp</span>
+                    <span className="font-mono text-foreground flex-1">{resolved[req.id].phone}</span>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => copyToClipboard(resolved[req.id].phone)} className="text-primary hover:opacity-70"><Copy className="w-4 h-4" /></button>
+                      <a
+                        href={`https://wa.me/${resolved[req.id].phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Your NX-Connect password has been reset. New password: ${resolved[req.id].password}`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:opacity-70 font-bold text-xs underline"
+                        data-testid={`button-whatsapp-${req.id}`}
+                      >
+                        Open WhatsApp
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex gap-2">

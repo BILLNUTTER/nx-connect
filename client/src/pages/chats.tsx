@@ -145,7 +145,7 @@ function ActiveChat({
             </div>
             <div>
               <div className="font-bold flex items-center gap-2">
-                NutterX Official
+                NX-Connect
                 <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full font-bold border border-primary/20">ADMIN</span>
               </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Read-only — no replies</div>
@@ -229,7 +229,7 @@ function ActiveChat({
       ) : (
         <div className="p-4 bg-card border-t border-border flex items-center justify-center gap-2 text-muted-foreground text-sm">
           <Lock className="w-4 h-4" />
-          <span>This is a read-only message from NutterX Admin. Replies are not allowed.</span>
+          <span>This is a read-only message from NX-Connect. Replies are not allowed.</span>
         </div>
       )}
     </>
