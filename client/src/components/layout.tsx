@@ -2,16 +2,19 @@ import { Link, useLocation } from "wouter";
 import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Camera, ChevronDown } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useFriendRequests } from "@/hooks/use-users";
 import { useState, useRef, useEffect } from "react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const { data: notifications } = useNotifications();
+  const { data: friendRequests } = useFriendRequests();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  const unreadNotifCount = notifications?.filter((n) => !n.read).length || 0;
+  const pendingRequestCount = friendRequests?.length || 0;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -26,10 +29,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   if (!user) return <>{children}</>;
 
   const navItems = [
-    { href: "/home", icon: Home, label: "Home" },
-    { href: "/friends", icon: Users, label: "Friends" },
-    { href: "/chats", icon: MessageCircle, label: "Chats" },
-    { href: "/notifications", icon: Bell, label: "Notifications", badge: unreadCount },
+    { href: "/home", icon: Home, label: "Home", badge: 0 },
+    { href: "/friends", icon: Users, label: "Friends", badge: pendingRequestCount },
+    { href: "/chats", icon: MessageCircle, label: "Chats", badge: 0 },
+    { href: "/notifications", icon: Bell, label: "Notifications", badge: unreadNotifCount },
   ];
 
   return (
@@ -43,7 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <span className="font-display font-bold text-xl hidden sm:block text-foreground tracking-tight">NUTTERX</span>
           </Link>
 
-          <nav className="flex items-center gap-1 sm:gap-4">
+          <nav className="flex items-center gap-1 sm:gap-2">
             {navItems.map((item) => {
               const isActive = location === item.href || location.startsWith(`${item.href}/`);
               return (
@@ -60,7 +63,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className={`w-6 h-6 ${isActive ? "fill-primary/20" : ""}`} />
                   {item.badge > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full shadow-sm animate-in zoom-in">
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full px-1 shadow-sm animate-in zoom-in">
                       {item.badge > 9 ? "9+" : item.badge}
                     </span>
                   )}

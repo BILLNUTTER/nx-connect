@@ -2,16 +2,21 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useCreateComment, useComments } from "@/hooks/use-posts";
 import { useAuth } from "@/hooks/use-auth";
+import { useFriends } from "@/hooks/use-users";
+import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
-import { Heart, MessageCircle, Send, X, ArrowLeft } from "lucide-react";
-import type { Post, Comment } from "@shared/schema";
+import { Heart, MessageCircle, Send, X, MessageSquare } from "lucide-react";
+import type { Post } from "@shared/schema";
 
 export default function HomeFeed() {
   const { data: posts, isLoading } = usePosts();
   const { user } = useAuth();
+  const { data: friends } = useFriends();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   if (isLoading) return <div className="text-center py-10 text-muted-foreground animate-pulse">Loading feed...</div>;
+
+  const friendIds = new Set((friends || []).map((f: any) => f.id || f._id));
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-20">
@@ -31,6 +36,7 @@ export default function HomeFeed() {
             key={post.id}
             post={post}
             currentUserId={user?.id}
+            friendIds={friendIds}
             onOpenDetail={() => setSelectedPost(post)}
           />
         ))
@@ -40,6 +46,7 @@ export default function HomeFeed() {
         <PostDetailModal
           post={selectedPost}
           currentUserId={user?.id}
+          friendIds={friendIds}
           onClose={() => setSelectedPost(null)}
         />
       )}
@@ -82,39 +89,64 @@ function CreatePostBox() {
 function PostItem({
   post,
   currentUserId,
+  friendIds,
   onOpenDetail,
 }: {
   post: Post;
   currentUserId?: string;
+  friendIds: Set<string>;
   onOpenDetail: () => void;
 }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
+  const getOrCreate = useGetOrCreateConversation();
   const hasLiked = post.likes.includes(currentUserId || "");
   const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
+  const isOwnPost = authorId === currentUserId;
+  const isFriend = !isOwnPost && authorId && friendIds.has(authorId);
+
+  const handleMessage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!authorId) return;
+    const conv = await getOrCreate.mutateAsync(authorId);
+    setLocation(`/chats?conv=${conv.id}`);
+  };
 
   return (
     <Card className="transition-all hover:shadow-xl hover:border-border">
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-          className="hover:opacity-80 transition-opacity"
-          data-testid={`button-author-avatar-${post.id}`}
-        >
-          <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} />
-        </button>
-        <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-            className="font-bold text-foreground hover:underline text-left"
-            data-testid={`button-author-name-${post.id}`}
+            className="hover:opacity-80 transition-opacity"
+            data-testid={`button-author-avatar-${post.id}`}
           >
-            {post.author?.name}
+            <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} />
           </button>
-          <div className="text-xs text-muted-foreground flex gap-1">
-            @{post.author?.username} • <TimeAgo date={post.createdAt!} />
+          <div>
+            <button
+              onClick={() => authorId && setLocation(`/profile/${authorId}`)}
+              className="font-bold text-foreground hover:underline text-left"
+              data-testid={`button-author-name-${post.id}`}
+            >
+              {post.author?.name}
+            </button>
+            <div className="text-xs text-muted-foreground flex gap-1">
+              @{post.author?.username} • <TimeAgo date={post.createdAt!} />
+            </div>
           </div>
         </div>
+        {isFriend && (
+          <button
+            onClick={handleMessage}
+            disabled={getOrCreate.isPending}
+            className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
+            data-testid={`button-message-${post.id}`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            Message
+          </button>
+        )}
       </div>
 
       <button
@@ -150,25 +182,37 @@ function PostItem({
 function PostDetailModal({
   post,
   currentUserId,
+  friendIds,
   onClose,
 }: {
   post: Post;
   currentUserId?: string;
+  friendIds: Set<string>;
   onClose: () => void;
 }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
+  const getOrCreate = useGetOrCreateConversation();
   const { data: comments, isLoading } = useComments(post.id);
   const createComment = useCreateComment();
   const [content, setContent] = useState("");
   const { user } = useAuth();
   const hasLiked = post.likes.includes(currentUserId || "");
   const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
+  const isOwnPost = authorId === currentUserId;
+  const isFriend = !isOwnPost && authorId && friendIds.has(authorId);
 
   const handleSend = async () => {
     if (!content.trim()) return;
     await createComment.mutateAsync({ postId: post.id, content });
     setContent("");
+  };
+
+  const handleMessage = async () => {
+    if (!authorId) return;
+    const conv = await getOrCreate.mutateAsync(authorId);
+    onClose();
+    setLocation(`/chats?conv=${conv.id}`);
   };
 
   return (
@@ -202,9 +246,22 @@ function PostDetailModal({
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-secondary transition-colors" data-testid="button-close-modal">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {isFriend && (
+              <button
+                onClick={handleMessage}
+                disabled={getOrCreate.isPending}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
+                data-testid="button-modal-message"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                Message
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-secondary transition-colors" data-testid="button-close-modal">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 border-b border-border/50">

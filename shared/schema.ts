@@ -101,14 +101,20 @@ export const conversationSchema = z.object({
 export const notificationSchema = z.object({
   id: z.string(),
   recipientId: z.string(),
-  senderId: z.string().optional(),
+  senderId: z.string().or(z.object({
+    id: z.string().optional(),
+    _id: z.string().optional(),
+    name: z.string().optional(),
+    username: z.string().optional(),
+    profilePicture: z.string().optional(),
+  })).optional(),
   type: z.enum(["like", "comment", "friend_request", "friend_accept", "friend_post", "system"]),
   postId: z.string().optional(),
   content: z.string().optional(),
   read: z.boolean().default(false),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
-});
+}).passthrough();
 
 export const forgotPasswordSchema = z.object({
   id: z.string(),
