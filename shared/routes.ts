@@ -231,6 +231,18 @@ export const api = {
       path: '/api/admin/password-requests/:id/resolve' as const,
       responses: { 200: z.object({ message: z.string() }) }
     }
+  },
+  search: {
+    query: {
+      method: 'GET' as const,
+      path: '/api/search' as const,
+      responses: {
+        200: z.object({
+          users: z.array(userSchema),
+          posts: z.array(postSchema),
+        })
+      }
+    }
   }
 };
 

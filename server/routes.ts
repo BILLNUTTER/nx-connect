@@ -569,6 +569,23 @@ export async function registerRoutes(
     res.status(200).json(notif?.toJSON());
   });
 
+  app.get(api.search.query.path, authenticate, async (req: Request, res: Response) => {
+    const q = (req.query.q as string || "").trim();
+    if (!q || q.length < 2) return res.status(200).json({ users: [], posts: [] });
+    const regex = new RegExp(q, "i");
+    const [users, posts] = await Promise.all([
+      User.find({ $or: [{ name: regex }, { username: regex }] }).select('-password').limit(8),
+      Post.find({ content: regex, $or: [{ hidden: false }, { hidden: { $exists: false } }] })
+        .populate('authorId', 'name username profilePicture').sort({ createdAt: -1 }).limit(8),
+    ]);
+    const formattedPosts = posts.map(p => {
+      const doc = p.toJSON() as any;
+      doc.author = doc.authorId;
+      return doc;
+    });
+    res.status(200).json({ users: users.map(u => u.toJSON()), posts: formattedPosts });
+  });
+
   // Admin
   app.get(api.admin.users.path, adminOnly, async (req: Request, res: Response) => {
     const users = await User.find().select('-password');
