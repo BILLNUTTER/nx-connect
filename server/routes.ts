@@ -258,11 +258,14 @@ export async function registerRoutes(
     await me.save();
     await target.save();
 
-    await new Notification({
+    // Create notification with explicit content
+    const notif = new Notification({
       recipientId: targetId,
       senderId: userId,
-      type: 'friend_request'
-    }).save();
+      type: 'friend_request',
+      content: `${me.name} sent you a friend request`
+    });
+    await notif.save();
 
     res.status(200).json({ message: "Request sent" });
   });
@@ -285,10 +288,13 @@ export async function registerRoutes(
     await me.save();
     await requester.save();
 
+    // Notify requester that their request was accepted
+    const meUser = await User.findById(userId);
     await new Notification({
       recipientId: requesterId,
       senderId: userId,
-      type: 'friend_accept'
+      type: 'friend_accept',
+      content: `${meUser?.name} accepted your friend request`
     }).save();
 
     res.status(200).json({ message: "Request accepted" });
@@ -370,9 +376,18 @@ export async function registerRoutes(
   app.get(api.notifications.list.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const notifs = await Notification.find({ recipientId: userId })
-      .populate('senderId', 'name username profilePicture')
+      .populate('senderId', 'name username profilePicture id')
+      .populate('postId', 'content id')
       .sort({ createdAt: -1 });
-    res.status(200).json(notifs.map(n => n.toJSON()));
+    const formatted = notifs.map(n => {
+      const doc = n.toJSON() as any;
+      // Ensure sender info is accessible
+      if (doc.senderId) {
+        doc.sender = doc.senderId;
+      }
+      return doc;
+    });
+    res.status(200).json(formatted);
   });
 
   app.put(api.notifications.markRead.path, authenticate, async (req: Request, res: Response) => {

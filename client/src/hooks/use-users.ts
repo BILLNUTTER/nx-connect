@@ -42,6 +42,7 @@ export function useSendFriendRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.users.discover.path] });
       queryClient.invalidateQueries({ queryKey: [api.auth.me.path] }); // update sent requests
+      // Note: Recipient's notifications will be fetched automatically when they refresh
     },
   });
 }
@@ -57,6 +58,7 @@ export function useAcceptFriendRequest() {
       queryClient.invalidateQueries({ queryKey: [api.users.friendRequests.path] });
       queryClient.invalidateQueries({ queryKey: [api.users.friends.path] });
       queryClient.invalidateQueries({ queryKey: [api.auth.me.path] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] }); // Notify requester immediately
     },
   });
 }

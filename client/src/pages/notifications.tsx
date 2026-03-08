@@ -1,10 +1,12 @@
 import { useNotifications, useMarkNotificationRead } from "@/hooks/use-notifications";
-import { Card, TimeAgo } from "@/components/ui/shared";
-import { Bell, Heart, MessageCircle, UserPlus, Info } from "lucide-react";
+import { useAcceptFriendRequest } from "@/hooks/use-users";
+import { Card, Button, TimeAgo } from "@/components/ui/shared";
+import { Bell, Heart, MessageCircle, UserPlus, Info, Check, X } from "lucide-react";
 
 export default function NotificationsPage() {
   const { data: notifications, isLoading } = useNotifications();
   const markRead = useMarkNotificationRead();
+  const acceptRequest = useAcceptFriendRequest();
 
   if (isLoading) return <div className="text-center py-10">Loading notifications...</div>;
 
@@ -29,11 +31,13 @@ export default function NotificationsPage() {
             system: <Info className="w-6 h-6 text-yellow-500" />
           };
 
+          const isFriendRequest = notif.type === 'friend_request';
+          const senderId = (notif as any).senderId?.id || (notif as any).sender?.id;
+
           return (
             <Card 
               key={notif.id} 
-              className={`flex items-start gap-4 cursor-pointer transition-colors ${!notif.read ? "bg-primary/5 border-primary/20" : ""}`}
-              onClick={() => !notif.read && markRead.mutate(notif.id)}
+              className={`flex items-start gap-4 transition-colors ${!notif.read ? "bg-primary/5 border-primary/20" : ""}`}
             >
               <div className="p-3 bg-background rounded-full shadow-sm border border-border/50">
                 {icons[notif.type as keyof typeof icons]}
@@ -46,9 +50,27 @@ export default function NotificationsPage() {
                   <TimeAgo date={notif.createdAt!} />
                 </div>
               </div>
-              {!notif.read && (
-                <div className="w-3 h-3 rounded-full bg-primary shadow-sm shadow-primary/50 mt-4"></div>
-              )}
+              <div className="flex gap-2">
+                {isFriendRequest && senderId && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        acceptRequest.mutate(senderId);
+                        markRead.mutate(notif.id);
+                      }}
+                      disabled={acceptRequest.isPending}
+                      data-testid="button-accept-request"
+                    >
+                      <Check className="w-4 h-4 mr-1" /> Accept
+                    </Button>
+                  </>
+                )}
+                {!notif.read && !isFriendRequest && (
+                  <div className="w-3 h-3 rounded-full bg-primary shadow-sm shadow-primary/50 mt-4"></div>
+                )}
+              </div>
             </Card>
           );
         })
