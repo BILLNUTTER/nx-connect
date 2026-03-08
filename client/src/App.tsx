@@ -16,6 +16,7 @@ import ChatsPage from "./pages/chats";
 import NotificationsPage from "./pages/notifications";
 import ProfilePage from "./pages/profile";
 import UserProfilePage from "./pages/user-profile";
+import PostPage from "./pages/post";
 import AdminDashboard from "./pages/admin";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -71,6 +72,9 @@ function Router() {
       </Route>
       <Route path="/profile/:id">
         <ProtectedRoute component={UserProfilePage} />
+      </Route>
+      <Route path="/post/:id">
+        <ProtectedRoute component={PostPage} />
       </Route>
 
       <Route>

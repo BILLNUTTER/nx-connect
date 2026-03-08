@@ -177,6 +177,15 @@ export async function registerRoutes(
     res.status(200).json(post.toJSON());
   });
 
+  // Get single post
+  app.get(api.posts.get.path, authenticate, async (req: Request, res: Response) => {
+    const post = await Post.findById(req.params.id).populate('authorId', 'name username profilePicture');
+    if (!post) return res.status(404).json({ message: "Not found" });
+    const doc = post.toJSON() as any;
+    doc.author = doc.authorId;
+    res.status(200).json(doc);
+  });
+
   // Comments
   app.get(api.comments.list.path, authenticate, async (req: Request, res: Response) => {
     const comments = await Comment.find({ postId: req.params.postId })
@@ -308,6 +317,27 @@ export async function registerRoutes(
       content: `${meUser?.name} accepted your friend request`
     }).save();
 
+    // Auto-create a conversation between the two new friends with a welcome message
+    let convo = await Conversation.findOne({
+      participants: { $all: [userId, requesterId], $size: 2 }
+    });
+    if (!convo) {
+      const welcomeText = `🎉 You and ${meUser?.name} are now friends! Start chatting.`;
+      convo = new Conversation({
+        participants: [userId, requesterId],
+        lastMessage: welcomeText,
+        lastMessageAt: new Date(),
+        unreadBy: [requesterId],
+      });
+      await convo.save();
+      // Send system welcome message
+      await new Message({
+        conversationId: convo._id,
+        senderId: userId,
+        content: welcomeText,
+      }).save();
+    }
+
     res.status(200).json({ message: "Request accepted" });
   });
 
@@ -351,12 +381,15 @@ export async function registerRoutes(
   // Chats
   app.get(api.chats.conversations.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
-    const convos = await Conversation.find({ participants: userId }).populate('participants', 'name username profilePicture');
+    const convos = await Conversation.find({ participants: userId })
+      .populate('participants', 'name username profilePicture')
+      .sort({ lastMessageAt: -1, updatedAt: -1 });
     
     const formatted = convos.map(c => {
       const doc = c.toJSON() as any;
       const other = doc.participants.find((p: any) => p.id !== userId);
       doc.otherUser = other;
+      doc.unreadCount = (doc.unreadBy || []).some((uid: any) => uid.toString() === userId.toString()) ? 1 : 0;
       return doc;
     });
     
@@ -380,7 +413,12 @@ export async function registerRoutes(
   });
 
   app.get(api.chats.messages.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
     const messages = await Message.find({ conversationId: req.params.conversationId }).sort({ createdAt: 1 });
+    // Mark conversation as read for this user
+    await Conversation.findByIdAndUpdate(req.params.conversationId, {
+      $pull: { unreadBy: userId }
+    });
     res.status(200).json(messages.map(m => m.toJSON()));
   });
 
@@ -392,6 +430,19 @@ export async function registerRoutes(
       content: req.body.content
     });
     await msg.save();
+    // Update conversation's lastMessage and mark other participants as having unread
+    const convo = await Conversation.findById(req.params.conversationId);
+    if (convo) {
+      const others = convo.participants.filter((p: any) => p.toString() !== userId.toString());
+      convo.lastMessage = req.body.content;
+      convo.lastMessageAt = new Date();
+      for (const otherId of others) {
+        if (!convo.unreadBy.some((uid: any) => uid.toString() === otherId.toString())) {
+          convo.unreadBy.push(otherId);
+        }
+      }
+      await convo.save();
+    }
     res.status(201).json(msg.toJSON());
   });
 

@@ -91,12 +91,23 @@ export const messageSchema = z.object({
   updatedAt: z.string().datetime().optional(),
 });
 
+const participantSchema = z.string().or(z.object({
+  id: z.string().optional(),
+  _id: z.string().optional(),
+  name: z.string().optional(),
+  username: z.string().optional(),
+  profilePicture: z.string().optional(),
+}));
+
 export const conversationSchema = z.object({
   id: z.string(),
-  participants: z.array(z.string()),
+  participants: z.array(participantSchema),
+  lastMessage: z.string().nullable().optional(),
+  lastMessageAt: z.string().nullable().optional(),
+  unreadCount: z.number().nullable().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
-});
+}).passthrough();
 
 export const notificationSchema = z.object({
   id: z.string(),
@@ -109,7 +120,7 @@ export const notificationSchema = z.object({
     profilePicture: z.string().optional(),
   })).optional(),
   type: z.enum(["like", "comment", "friend_request", "friend_accept", "friend_post", "system"]),
-  postId: z.string().optional(),
+  postId: z.string().or(z.object({ id: z.string().optional(), content: z.string().optional() })).optional(),
   content: z.string().optional(),
   read: z.boolean().default(false),
   createdAt: z.string().datetime().optional(),

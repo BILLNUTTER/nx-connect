@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { usePosts, useCreatePost, useLikePost, useCreateComment, useComments } from "@/hooks/use-posts";
+import { usePosts, useCreatePost, useLikePost } from "@/hooks/use-posts";
 import { useAuth } from "@/hooks/use-auth";
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
-import { Heart, MessageCircle, Send, X, MessageSquare } from "lucide-react";
+import { Heart, MessageCircle, MessageSquare } from "lucide-react";
 import type { Post } from "@shared/schema";
 
 export default function HomeFeed() {
   const { data: posts, isLoading } = usePosts();
   const { user } = useAuth();
   const { data: friends } = useFriends();
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   if (isLoading) return <div className="text-center py-10 text-muted-foreground animate-pulse">Loading feed...</div>;
 
@@ -37,18 +36,8 @@ export default function HomeFeed() {
             post={post}
             currentUserId={user?.id}
             friendIds={friendIds}
-            onOpenDetail={() => setSelectedPost(post)}
           />
         ))
-      )}
-
-      {selectedPost && (
-        <PostDetailModal
-          post={selectedPost}
-          currentUserId={user?.id}
-          friendIds={friendIds}
-          onClose={() => setSelectedPost(null)}
-        />
       )}
     </div>
   );
@@ -90,12 +79,10 @@ function PostItem({
   post,
   currentUserId,
   friendIds,
-  onOpenDetail,
 }: {
   post: Post;
   currentUserId?: string;
   friendIds: Set<string>;
-  onOpenDetail: () => void;
 }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
@@ -132,7 +119,7 @@ function PostItem({
               {post.author?.name}
             </button>
             <div className="text-xs text-muted-foreground flex gap-1">
-              @{post.author?.username} • <TimeAgo date={post.createdAt!} />
+              @{post.author?.username} · <TimeAgo date={post.createdAt!} />
             </div>
           </div>
         </div>
@@ -150,16 +137,17 @@ function PostItem({
       </div>
 
       <button
-        onClick={onOpenDetail}
+        onClick={() => setLocation(`/post/${post.id}`)}
         className="w-full text-left mb-4 hover:opacity-80 transition-opacity"
         data-testid={`button-open-post-${post.id}`}
       >
-        <p className="text-lg whitespace-pre-wrap">{post.content}</p>
+        <p className="text-lg whitespace-pre-wrap line-clamp-5">{post.content}</p>
+        <span className="text-sm text-primary font-medium mt-1 block">View post & comments →</span>
       </button>
 
       <div className="flex items-center gap-4 pt-4 border-t border-border/50">
         <button
-          onClick={() => likePost.mutate(post.id)}
+          onClick={(e) => { e.stopPropagation(); likePost.mutate(post.id); }}
           className={`flex items-center gap-2 text-sm font-medium transition-colors ${hasLiked ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"}`}
           data-testid={`button-like-${post.id}`}
         >
@@ -167,166 +155,14 @@ function PostItem({
           {post.likes.length}
         </button>
         <button
-          onClick={onOpenDetail}
+          onClick={() => setLocation(`/post/${post.id}`)}
           className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
           data-testid={`button-comment-${post.id}`}
         >
           <MessageCircle className="w-5 h-5" />
-          Comment
+          Comments
         </button>
       </div>
     </Card>
-  );
-}
-
-function PostDetailModal({
-  post,
-  currentUserId,
-  friendIds,
-  onClose,
-}: {
-  post: Post;
-  currentUserId?: string;
-  friendIds: Set<string>;
-  onClose: () => void;
-}) {
-  const [, setLocation] = useLocation();
-  const likePost = useLikePost();
-  const getOrCreate = useGetOrCreateConversation();
-  const { data: comments, isLoading } = useComments(post.id);
-  const createComment = useCreateComment();
-  const [content, setContent] = useState("");
-  const { user } = useAuth();
-  const hasLiked = post.likes.includes(currentUserId || "");
-  const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
-  const isOwnPost = authorId === currentUserId;
-  const isFriend = !isOwnPost && authorId && friendIds.has(authorId);
-
-  const handleSend = async () => {
-    if (!content.trim()) return;
-    await createComment.mutateAsync({ postId: post.id, content });
-    setContent("");
-  };
-
-  const handleMessage = async () => {
-    if (!authorId) return;
-    const conv = await getOrCreate.mutateAsync(authorId);
-    onClose();
-    setLocation(`/chats?conv=${conv.id}`);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-      onClick={onClose}
-      data-testid="modal-post-detail"
-    >
-      <div
-        className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-6 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { onClose(); authorId && setLocation(`/profile/${authorId}`); }}
-              className="hover:opacity-80 transition-opacity"
-              data-testid="button-modal-author"
-            >
-              <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} />
-            </button>
-            <div>
-              <button
-                onClick={() => { onClose(); authorId && setLocation(`/profile/${authorId}`); }}
-                className="font-bold hover:underline text-left"
-              >
-                {post.author?.name}
-              </button>
-              <div className="text-xs text-muted-foreground">
-                @{post.author?.username} • <TimeAgo date={post.createdAt!} />
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {isFriend && (
-              <button
-                onClick={handleMessage}
-                disabled={getOrCreate.isPending}
-                className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
-                data-testid="button-modal-message"
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-                Message
-              </button>
-            )}
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-secondary transition-colors" data-testid="button-close-modal">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <div className="p-6 border-b border-border/50">
-          <p className="text-lg whitespace-pre-wrap">{post.content}</p>
-          <div className="flex items-center gap-4 mt-4">
-            <button
-              onClick={() => likePost.mutate(post.id)}
-              className={`flex items-center gap-2 text-sm font-medium transition-colors ${hasLiked ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"}`}
-              data-testid="button-modal-like"
-            >
-              <Heart className={`w-5 h-5 ${hasLiked ? "fill-current" : ""}`} />
-              {post.likes.length} {post.likes.length === 1 ? "Like" : "Likes"}
-            </button>
-            <span className="text-sm text-muted-foreground flex items-center gap-1">
-              <MessageCircle className="w-4 h-4" /> {comments?.length ?? 0} Comments
-            </span>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {isLoading ? (
-            <div className="text-center text-muted-foreground animate-pulse">Loading comments...</div>
-          ) : !comments?.length ? (
-            <div className="text-center text-muted-foreground py-8">No comments yet. Be the first!</div>
-          ) : (
-            comments.map(c => (
-              <div key={c.id} className="flex gap-3">
-                <Avatar url={c.author?.profilePicture} name={c.author?.name || "U"} size="sm" />
-                <div className="flex-1 bg-secondary/50 rounded-2xl p-3">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="font-bold text-sm">{c.author?.name}</span>
-                    <span className="text-xs text-muted-foreground"><TimeAgo date={c.createdAt!} /></span>
-                  </div>
-                  <p className="text-sm">{c.content}</p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-4 border-t border-border/50">
-          <div className="flex items-center gap-3">
-            <Avatar url={user?.profilePicture} name={user?.name || "U"} size="sm" />
-            <div className="flex-1 flex items-center bg-secondary rounded-full px-4 py-2.5 gap-2">
-              <input
-                type="text"
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                placeholder="Write a comment..."
-                className="flex-1 bg-transparent border-none outline-none text-sm"
-                onKeyDown={e => e.key === "Enter" && handleSend()}
-                data-testid="input-comment"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!content.trim() || createComment.isPending}
-                className="text-primary disabled:opacity-40 transition-opacity"
-                data-testid="button-send-comment"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

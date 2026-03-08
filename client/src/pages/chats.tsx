@@ -1,138 +1,77 @@
 import { useState, useEffect, useRef } from "react";
 import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation } from "@/hooks/use-chats";
-import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, TimeAgo } from "@/components/ui/shared";
-import { Send, MessageSquare, Users } from "lucide-react";
+import { Send, MessageSquare } from "lucide-react";
 import { useSearch } from "wouter";
 
 export default function ChatsPage() {
-  const { data: conversations, isLoading: convsLoading } = useConversations();
-  const { data: friends } = useFriends();
+  const { data: conversations, isLoading } = useConversations();
   const { user } = useAuth();
-  const getOrCreate = useGetOrCreateConversation();
   const search = useSearch();
   const params = new URLSearchParams(search);
   const defaultConvId = params.get("conv");
-
   const [activeConvId, setActiveConvId] = useState<string | null>(defaultConvId);
-  const [tab, setTab] = useState<"chats" | "friends">("chats");
 
   useEffect(() => {
     if (defaultConvId) setActiveConvId(defaultConvId);
   }, [defaultConvId]);
 
-  const startChat = async (friendId: string) => {
-    const conv = await getOrCreate.mutateAsync(friendId);
-    setActiveConvId(conv.id);
-    setTab("chats");
-  };
-
-  const existingParticipants = new Set(
-    (conversations || []).flatMap((c: any) => c.participants || [])
-  );
-
-  const friendsWithoutChat = (friends || []).filter((f: any) => {
-    const fid = f.id || f._id;
-    return !existingParticipants.has(fid) || true;
-  });
-
-  if (convsLoading) return <div className="text-center py-10">Loading chats...</div>;
+  if (isLoading) return <div className="text-center py-10">Loading chats...</div>;
 
   return (
     <div className="max-w-6xl mx-auto bg-card rounded-3xl shadow-xl border border-border/50 overflow-hidden flex h-[calc(100vh-8rem)]">
       <div className={`w-full md:w-80 border-r border-border flex flex-col ${activeConvId ? "hidden md:flex" : "flex"}`}>
-        <div className="p-4 border-b border-border">
-          <h2 className="text-2xl font-display font-bold mb-3">Messages</h2>
-          <div className="flex bg-secondary/50 rounded-xl p-1 gap-1">
-            <button
-              onClick={() => setTab("chats")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                tab === "chats" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
-              }`}
-              data-testid="tab-chats"
-            >
-              <MessageSquare className="w-4 h-4" /> Chats
-            </button>
-            <button
-              onClick={() => setTab("friends")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                tab === "friends" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground"
-              }`}
-              data-testid="tab-friends"
-            >
-              <Users className="w-4 h-4" /> Friends
-              {friends && friends.length > 0 && (
-                <span className="w-4 h-4 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full">
-                  {friends.length > 9 ? "9+" : friends.length}
-                </span>
-              )}
-            </button>
-          </div>
+        <div className="p-5 border-b border-border">
+          <h2 className="text-2xl font-display font-bold">Messages</h2>
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {tab === "chats" ? (
-            <>
-              {(!conversations || conversations.length === 0) ? (
-                <div className="text-center py-10 text-muted-foreground px-4 space-y-2">
-                  <MessageSquare className="w-10 h-10 mx-auto opacity-30" />
-                  <p className="text-sm">No conversations yet.</p>
-                  <p className="text-xs">Switch to Friends tab to start a chat!</p>
-                </div>
-              ) : (
-                conversations.map((conv: any) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => setActiveConvId(conv.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all ${
-                      activeConvId === conv.id
-                        ? "bg-primary text-white shadow-md shadow-primary/20"
-                        : "hover:bg-secondary"
-                    }`}
-                    data-testid={`conv-item-${conv.id}`}
-                  >
-                    <Avatar url={conv.otherUser?.profilePicture} name={conv.otherUser?.name || "U"} />
-                    <div className="text-left flex-1 overflow-hidden">
-                      <div className="font-bold truncate">{conv.otherUser?.name}</div>
-                      <div className={`text-xs truncate ${activeConvId === conv.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                        @{conv.otherUser?.username}
-                      </div>
-                    </div>
-                  </button>
-                ))
-              )}
-            </>
+          {(!conversations || conversations.length === 0) ? (
+            <div className="text-center py-14 text-muted-foreground px-4 space-y-3">
+              <MessageSquare className="w-12 h-12 mx-auto opacity-25" />
+              <p className="font-medium">No conversations yet</p>
+              <p className="text-xs">Accept a friend request to start chatting!</p>
+            </div>
           ) : (
-            <>
-              {(!friends || friends.length === 0) ? (
-                <div className="text-center py-10 text-muted-foreground px-4 space-y-2">
-                  <Users className="w-10 h-10 mx-auto opacity-30" />
-                  <p className="text-sm">No friends yet.</p>
-                  <p className="text-xs">Add friends to start chatting!</p>
-                </div>
-              ) : (
-                friends.map((friend: any) => {
-                  const fid = friend.id || friend._id;
-                  return (
-                    <button
-                      key={fid}
-                      onClick={() => startChat(fid)}
-                      disabled={getOrCreate.isPending}
-                      className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-secondary transition-all"
-                      data-testid={`friend-chat-${fid}`}
-                    >
-                      <Avatar url={friend.profilePicture} name={friend.name || "U"} />
-                      <div className="text-left flex-1 overflow-hidden">
-                        <div className="font-bold truncate">{friend.name}</div>
-                        <div className="text-xs text-muted-foreground truncate">@{friend.username}</div>
-                      </div>
-                      <span className="text-xs text-primary font-semibold shrink-0">Chat →</span>
-                    </button>
-                  );
-                })
-              )}
-            </>
+            conversations.map((conv: any) => {
+              const isActive = activeConvId === conv.id;
+              const hasUnread = conv.unreadCount > 0;
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setActiveConvId(conv.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left ${
+                    isActive
+                      ? "bg-primary text-white shadow-md shadow-primary/20"
+                      : hasUnread
+                        ? "bg-primary/8 hover:bg-primary/15 border border-primary/20"
+                        : "hover:bg-secondary"
+                  }`}
+                  data-testid={`conv-item-${conv.id}`}
+                >
+                  <div className="relative shrink-0">
+                    <Avatar url={conv.otherUser?.profilePicture} name={conv.otherUser?.name || "U"} />
+                    {hasUnread && !isActive && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-card" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-bold truncate ${hasUnread && !isActive ? "text-primary" : ""}`}>
+                      {conv.otherUser?.name}
+                    </div>
+                    <div className={`text-xs truncate ${isActive ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                      {conv.lastMessage || `@${conv.otherUser?.username}`}
+                    </div>
+                  </div>
+                  {hasUnread && !isActive && (
+                    <span className="shrink-0 text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full">
+                      NEW
+                    </span>
+                  )}
+                </button>
+              );
+            })
           )}
         </div>
       </div>
@@ -151,7 +90,7 @@ export default function ChatsPage() {
               <MessageSquare className="w-10 h-10" />
             </div>
             <h3 className="text-2xl font-display font-bold text-foreground mb-2">Your Messages</h3>
-            <p>Select a conversation or start a new chat.</p>
+            <p className="text-sm">Select a conversation to start chatting.</p>
           </div>
         )}
       </div>
@@ -170,7 +109,7 @@ function ActiveChat({
   currentUserId?: string;
   onBack: () => void;
 }) {
-  const { data: messages } = useMessages(conversationId);
+  const { data: messages, refetch } = useMessages(conversationId);
   const sendMessage = useSendMessage();
   const [content, setContent] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -208,7 +147,7 @@ function ActiveChat({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {messages?.length === 0 && (
           <div className="text-center text-muted-foreground py-10">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -219,7 +158,7 @@ function ActiveChat({
           const isMe = msg.senderId === currentUserId;
           return (
             <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-              <div className={`max-w-[75%] rounded-2xl p-4 shadow-sm ${
+              <div className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
                 isMe ? "bg-primary text-white rounded-br-sm" : "bg-card border border-border/50 text-foreground rounded-bl-sm"
               }`}>
                 {msg.content}

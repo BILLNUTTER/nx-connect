@@ -34,6 +34,9 @@ const messageSchema = new mongoose.Schema({
 
 const conversationSchema = new mongoose.Schema({
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  lastMessage: { type: String, default: '' },
+  lastMessageAt: { type: Date, default: null },
+  unreadBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
 const notificationSchema = new mongoose.Schema({

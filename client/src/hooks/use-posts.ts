@@ -43,6 +43,18 @@ export function useLikePost() {
   });
 }
 
+export function usePost(id: string) {
+  return useQuery({
+    queryKey: [api.posts.get.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.posts.get.path, { id });
+      const data = await apiFetch(url);
+      return parseWithLogging(api.posts.get.responses[200], data, "posts.get");
+    },
+    enabled: !!id,
+  });
+}
+
 export function useComments(postId: string) {
   return useQuery({
     queryKey: [api.comments.list.path, postId],

@@ -67,6 +67,11 @@ export const api = {
       path: '/api/posts' as const,
       responses: { 200: z.array(postSchema) }
     },
+    get: {
+      method: 'GET' as const,
+      path: '/api/posts/:id' as const,
+      responses: { 200: postSchema, 404: errorSchemas.notFound }
+    },
     create: {
       method: 'POST' as const,
       path: '/api/posts' as const,
@@ -138,7 +143,11 @@ export const api = {
     conversations: {
       method: 'GET' as const,
       path: '/api/chats' as const,
-      responses: { 200: z.array(conversationSchema.extend({ otherUser: userSchema.optional() })) }
+      responses: {
+        200: z.array(conversationSchema.extend({
+          otherUser: userSchema.optional(),
+        }))
+      }
     },
     getOrCreate: {
       method: 'POST' as const,
