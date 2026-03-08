@@ -29,14 +29,19 @@ export async function registerRoutes(
       await user.save();
 
       // Send notification to all users about new follow suggestions
-      const allUsers = await User.find({ _id: { $ne: user._id } });
-      if (allUsers.length > 0) {
-        const notifications = allUsers.map(u => ({
-          recipientId: u._id,
-          type: 'system',
-          content: `${input.name} just joined! New follow suggestion available.`
-        }));
-        await Notification.insertMany(notifications);
+      try {
+        const allUsers = await User.find({ _id: { $ne: user._id } });
+        if (allUsers.length > 0) {
+          const notifications = allUsers.map(u => ({
+            recipientId: u._id,
+            type: 'system',
+            content: `${input.name} just joined! New follow suggestion available.`
+          }));
+          await Notification.insertMany(notifications);
+        }
+      } catch (notifError) {
+        console.error("Failed to create welcome notifications:", notifError);
+        // Don't fail signup if notifications fail
       }
 
       const token = generateToken(user.id);
@@ -45,6 +50,7 @@ export async function registerRoutes(
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: error.errors[0].message });
       }
+      console.error("Signup error:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
