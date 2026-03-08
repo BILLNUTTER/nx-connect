@@ -75,9 +75,11 @@ export function useLikePost() {
     },
     onSuccess: (updatedPost: any) => {
       if (updatedPost?.id) {
-        queryClient.setQueryData([api.posts.get.path, updatedPost.id], updatedPost);
+        queryClient.setQueryData([api.posts.get.path, updatedPost.id], (old: any) =>
+          old ? { ...old, likes: updatedPost.likes } : old
+        );
         queryClient.setQueryData([api.posts.list.path], (old: any) =>
-          Array.isArray(old) ? old.map((p: any) => p.id === updatedPost.id ? updatedPost : p) : old
+          Array.isArray(old) ? old.map((p: any) => p.id === updatedPost.id ? { ...p, likes: updatedPost.likes } : p) : old
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
@@ -112,9 +114,11 @@ export function useHidePost() {
     },
     onSuccess: (updatedPost: any) => {
       if (updatedPost?.id) {
-        queryClient.setQueryData([api.posts.get.path, updatedPost.id], updatedPost);
+        queryClient.setQueryData([api.posts.get.path, updatedPost.id], (old: any) =>
+          old ? { ...old, hidden: updatedPost.hidden } : old
+        );
         queryClient.setQueryData([api.posts.list.path], (old: any) =>
-          Array.isArray(old) ? old.map((p: any) => p.id === updatedPost.id ? updatedPost : p) : old
+          Array.isArray(old) ? old.map((p: any) => p.id === updatedPost.id ? { ...p, hidden: updatedPost.hidden } : p) : old
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
