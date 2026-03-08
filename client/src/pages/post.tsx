@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { usePost, useLikePost, useComments, useCreateComment } from "@/hooks/use-posts";
+import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
-import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye } from "lucide-react";
 
 export default function PostPage() {
   const [location, setLocation] = useLocation();
@@ -14,10 +14,13 @@ export default function PostPage() {
   const { data: post, isLoading } = usePost(id);
   const { data: comments, isLoading: commentsLoading } = useComments(id);
   const likePost = useLikePost();
+  const deletePost = useDeletePost();
+  const hidePost = useHidePost();
   const createComment = useCreateComment();
   const { data: friends } = useFriends();
   const getOrCreate = useGetOrCreateConversation();
   const [content, setContent] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto py-20 text-center text-muted-foreground animate-pulse">Loading post...</div>
@@ -35,6 +38,7 @@ export default function PostPage() {
   const isOwnPost = authorId === user?.id;
   const isFriend = !isOwnPost && authorId && friendIds.has(authorId);
   const hasLiked = post.likes.includes(user?.id || "");
+  const isHidden = (post as any).hidden;
 
   const handleSend = async () => {
     if (!content.trim()) return;
@@ -76,21 +80,45 @@ export default function PostPage() {
               >
                 {post.author?.name}
               </button>
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground flex items-center gap-1">
                 @{post.author?.username} · <TimeAgo date={post.createdAt!} />
+                {isHidden && <span className="text-amber-500 font-semibold ml-1">· Hidden</span>}
               </div>
             </div>
           </div>
-          {isFriend && (
-            <button
-              onClick={handleMessage}
-              disabled={getOrCreate.isPending}
-              className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
-              data-testid="button-message-author"
-            >
-              <MessageSquare className="w-3.5 h-3.5" /> Message
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isFriend && (
+              <button
+                onClick={handleMessage}
+                disabled={getOrCreate.isPending}
+                className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
+                data-testid="button-message-author"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Message
+              </button>
+            )}
+            {isOwnPost && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => hidePost.mutate(id)}
+                  disabled={hidePost.isPending}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-secondary/60 hover:bg-secondary px-3 py-1.5 rounded-full transition-colors"
+                  data-testid="button-hide-post"
+                >
+                  {isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  {isHidden ? "Unhide" : "Hide"}
+                </button>
+                <button
+                  onClick={() => { if (confirm("Delete this post?")) deletePost.mutate(id, { onSuccess: () => setLocation("/home") }); }}
+                  disabled={deletePost.isPending}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/20 px-3 py-1.5 rounded-full transition-colors"
+                  data-testid="button-delete-post"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <p className="text-xl leading-relaxed whitespace-pre-wrap mb-6" data-testid="text-post-content">{post.content}</p>

@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { usePosts, useCreatePost, useLikePost } from "@/hooks/use-posts";
+import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
-import { Heart, MessageCircle, ThumbsUp, Globe } from "lucide-react";
+import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye } from "lucide-react";
 import type { Post } from "@shared/schema";
 
 export default function HomeFeed() {
@@ -106,8 +106,22 @@ function CreatePostBox() {
 function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
+  const deletePost = useDeletePost();
+  const hidePost = useHidePost();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const hasLiked = post.likes.includes(currentUserId || "");
   const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
+  const isOwn = authorId === currentUserId;
+  const isHidden = (post as any).hidden;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden" data-testid={`post-card-${post.id}`}>
@@ -132,8 +146,40 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
               <TimeAgo date={post.createdAt!} />
               <span>·</span>
               <Globe className="w-3 h-3" />
+              {isHidden && <span className="text-amber-500 font-medium ml-1">· Hidden</span>}
             </div>
           </div>
+
+          {isOwn && (
+            <div className="relative shrink-0" ref={menuRef}>
+              <button
+                onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-secondary transition-colors text-muted-foreground"
+                data-testid={`button-post-menu-${post.id}`}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44 overflow-hidden">
+                  <button
+                    onClick={() => { setMenuOpen(false); hidePost.mutate(post.id); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                    data-testid={`button-hide-post-${post.id}`}
+                  >
+                    {isHidden ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+                    {isHidden ? "Unhide post" : "Hide from public"}
+                  </button>
+                  <button
+                    onClick={() => { setMenuOpen(false); if (confirm("Delete this post?")) deletePost.mutate(post.id); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-destructive/10 transition-colors text-left text-destructive"
+                    data-testid={`button-delete-post-${post.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" /> Delete post
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <button

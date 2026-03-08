@@ -3,8 +3,8 @@ import { useUserProfile, useUserPosts, useSendFriendRequest, useUnfriend, useAut
 import { useAuth } from "@/hooks/use-auth";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, TimeAgo } from "@/components/ui/shared";
-import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare } from "lucide-react";
-import { useLikePost } from "@/hooks/use-posts";
+import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare, EyeOff, Eye, Trash2 } from "lucide-react";
+import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import type { Post } from "@shared/schema";
 
 export default function UserProfilePage() {
@@ -116,20 +116,50 @@ export default function UserProfilePage() {
 function PostCard({ post, currentUserId }: { post: Post; currentUserId?: string }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
+  const deletePost = useDeletePost();
+  const hidePost = useHidePost();
   const hasLiked = post.likes.includes(currentUserId || "");
+  const authorId = (post.author as any)?.id || (post.authorId as any)?.id;
+  const isOwn = authorId === currentUserId;
+  const isHidden = (post as any).hidden;
 
   return (
     <Card className="transition-all hover:shadow-xl hover:border-border">
-      <button
-        onClick={() => setLocation(`/post/${post.id}`)}
-        className="w-full text-left"
-        data-testid={`button-open-post-${post.id}`}
-      >
-        <p className="text-lg whitespace-pre-wrap mb-3 line-clamp-5">{post.content}</p>
-        <div className="text-xs text-muted-foreground mb-3">
-          <TimeAgo date={post.createdAt!} />
-        </div>
-      </button>
+      <div className="flex items-start justify-between mb-1">
+        <button
+          onClick={() => setLocation(`/post/${post.id}`)}
+          className="flex-1 text-left"
+          data-testid={`button-open-post-${post.id}`}
+        >
+          <p className="text-lg whitespace-pre-wrap line-clamp-5">{post.content}</p>
+        </button>
+        {isOwn && (
+          <div className="flex gap-1 ml-2 shrink-0">
+            <button
+              onClick={() => hidePost.mutate(post.id)}
+              disabled={hidePost.isPending}
+              className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+              title={isHidden ? "Unhide" : "Hide from public"}
+              data-testid={`button-hide-post-${post.id}`}
+            >
+              {isHidden ? <Eye className="w-4 h-4 text-amber-500" /> : <EyeOff className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => { if (confirm("Delete this post?")) deletePost.mutate(post.id); }}
+              disabled={deletePost.isPending}
+              className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+              title="Delete post"
+              data-testid={`button-delete-post-${post.id}`}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="text-xs text-muted-foreground mb-3 flex items-center gap-2">
+        <TimeAgo date={post.createdAt!} />
+        {isHidden && <span className="text-amber-500 font-semibold">· Hidden from public</span>}
+      </div>
       <div className="flex items-center gap-4 pt-3 border-t border-border/50">
         <button
           onClick={(e) => { e.stopPropagation(); likePost.mutate(post.id); }}

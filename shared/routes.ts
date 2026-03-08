@@ -82,6 +82,16 @@ export const api = {
       method: 'POST' as const,
       path: '/api/posts/:id/like' as const,
       responses: { 200: postSchema, 404: errorSchemas.notFound }
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/posts/:id' as const,
+      responses: { 200: z.object({ message: z.string() }), 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
+    },
+    hide: {
+      method: 'PATCH' as const,
+      path: '/api/posts/:id/hide' as const,
+      responses: { 200: postSchema, 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
     }
   },
   comments: {

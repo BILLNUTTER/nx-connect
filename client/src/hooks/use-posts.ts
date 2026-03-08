@@ -85,6 +85,43 @@ export function useLikePost() {
   });
 }
 
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const url = buildUrl(api.posts.delete.path, { id });
+      await apiFetch(url, { method: "DELETE" });
+      return id;
+    },
+    onSuccess: (deletedId: string) => {
+      queryClient.setQueryData([api.posts.list.path], (old: any) =>
+        Array.isArray(old) ? old.filter((p: any) => p.id !== deletedId) : old
+      );
+      queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
+    },
+  });
+}
+
+export function useHidePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const url = buildUrl(api.posts.hide.path, { id });
+      const data = await apiFetch(url, { method: "PATCH" });
+      return parseWithLogging(api.posts.hide.responses[200], data, "posts.hide");
+    },
+    onSuccess: (updatedPost: any) => {
+      if (updatedPost?.id) {
+        queryClient.setQueryData([api.posts.get.path, updatedPost.id], updatedPost);
+        queryClient.setQueryData([api.posts.list.path], (old: any) =>
+          Array.isArray(old) ? old.map((p: any) => p.id === updatedPost.id ? updatedPost : p) : old
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
+    },
+  });
+}
+
 export function usePost(id: string) {
   return useQuery({
     queryKey: [api.posts.get.path, id],

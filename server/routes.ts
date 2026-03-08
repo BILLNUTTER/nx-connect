@@ -123,16 +123,40 @@ export async function registerRoutes(
 
   // Post Routes
   app.get(api.posts.list.path, authenticate, async (req: Request, res: Response) => {
-    const posts = await Post.find().populate('authorId', 'name username profilePicture').sort({ createdAt: -1 });
-    // Transform authorId to author for response matching schema, filter out bad posts
+    const userId = (req as any).userId;
+    const posts = await Post.find({ $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }] })
+      .populate('authorId', 'name username profilePicture').sort({ createdAt: -1 });
     const formattedPosts = posts
-      .filter(p => p._id && p.authorId && p.content) // Filter out invalid posts
+      .filter(p => p._id && p.authorId && p.content)
       .map(p => {
         const doc = p.toJSON();
         doc.author = doc.authorId;
         return doc;
       });
     res.status(200).json(formattedPosts);
+  });
+
+  app.delete(api.posts.delete.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Not found" });
+    if (post.authorId.toString() !== userId) return res.status(403).json({ message: "Forbidden" });
+    await Post.deleteOne({ _id: post._id });
+    await Comment.deleteMany({ postId: post._id });
+    res.status(200).json({ message: "Post deleted" });
+  });
+
+  app.patch(api.posts.hide.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Not found" });
+    if (post.authorId.toString() !== userId) return res.status(403).json({ message: "Forbidden" });
+    post.hidden = !post.hidden;
+    await post.save();
+    await post.populate('authorId', 'name username profilePicture');
+    const doc = post.toJSON() as any;
+    doc.author = doc.authorId;
+    res.status(200).json(doc);
   });
 
   app.post(api.posts.create.path, authenticate, async (req: Request, res: Response) => {
@@ -387,7 +411,11 @@ export async function registerRoutes(
   });
 
   app.get(api.users.posts.path, authenticate, async (req: Request, res: Response) => {
-    const posts = await Post.find({ authorId: req.params.id })
+    const viewerId = (req as any).userId;
+    const isOwner = viewerId === req.params.id;
+    const query: any = { authorId: req.params.id };
+    if (!isOwner) query.$or = [{ hidden: false }, { hidden: { $exists: false } }];
+    const posts = await Post.find(query)
       .populate('authorId', 'name username profilePicture')
       .sort({ createdAt: -1 });
     const formatted = posts.map(p => {
