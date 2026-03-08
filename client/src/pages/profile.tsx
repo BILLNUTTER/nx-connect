@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Input, Avatar } from "@/components/ui/shared";
-import { Camera, CheckCircle } from "lucide-react";
+import { Camera, CheckCircle, LogOut } from "lucide-react";
 
 export default function ProfilePage() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, logout } = useAuth();
   const [photoUrl, setPhotoUrl] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -59,14 +59,17 @@ export default function ProfilePage() {
       </Card>
 
       <Card>
-        <h3 className="text-xl font-bold mb-4">Update Profile Picture</h3>
+        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <Camera className="w-5 h-5 text-primary" /> Update Profile Picture
+        </h3>
         <div className="flex gap-4">
-          <Input 
-            placeholder="Paste image URL here..." 
-            value={photoUrl} 
-            onChange={(e) => setPhotoUrl(e.target.value)} 
+          <Input
+            placeholder="Paste image URL here..."
+            value={photoUrl}
+            onChange={(e) => setPhotoUrl(e.target.value)}
+            data-testid="input-photo-url"
           />
-          <Button onClick={handleUpdate} disabled={isUpdating || !photoUrl.trim()}>
+          <Button onClick={handleUpdate} disabled={isUpdating || !photoUrl.trim()} data-testid="button-update-photo">
             {isUpdating ? "Saving..." : "Update"}
           </Button>
         </div>
@@ -75,6 +78,19 @@ export default function ProfilePage() {
             <CheckCircle className="w-5 h-5" /> Profile picture updated successfully!
           </div>
         )}
+      </Card>
+
+      <Card className="border-destructive/20">
+        <h3 className="text-lg font-bold mb-1 text-destructive">Sign Out</h3>
+        <p className="text-sm text-muted-foreground mb-4">You'll need to log back in to access your account.</p>
+        <Button
+          variant="destructive"
+          onClick={logout}
+          className="w-full flex items-center justify-center gap-2"
+          data-testid="button-logout"
+        >
+          <LogOut className="w-4 h-4" /> Log Out
+        </Button>
       </Card>
     </div>
   );
