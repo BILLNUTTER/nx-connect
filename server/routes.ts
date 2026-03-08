@@ -88,19 +88,16 @@ export async function registerRoutes(
   });
 
   app.post(api.auth.forgotPassword.path, async (req: Request, res: Response) => {
-    const { username, desiredPassword } = req.body;
-    const user = await User.findOne({ username });
-    
-    if (user) {
-      const request = new ForgotPassword({ userId: user._id, username, desiredPassword });
-      await request.save();
-    } else {
-      // Create request even if user not found to not leak users? 
-      // Actually user wanted forgot password via username. Let's just create it anyway
-      const request = new ForgotPassword({ username, desiredPassword });
-      await request.save();
-    }
-    
+    const { phone, email } = req.body;
+    if (!phone || !email) return res.status(400).json({ message: "Phone and email are required" });
+    const user = await User.findOne({ $or: [{ email }, { phone }] });
+    const request = new ForgotPassword({
+      userId: user?._id,
+      username: user?.username,
+      phone,
+      email,
+    });
+    await request.save();
     res.status(200).json({ message: "Password reset request submitted" });
   });
 
@@ -127,7 +124,7 @@ export async function registerRoutes(
     const me = await User.findById(userId).select('friends');
     const friendSet = new Set<string>((me?.friends || []).map((f: any) => f.toString()));
 
-    const posts = await Post.find({ $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }] })
+    const posts = await Post.find({ $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }, { isAdminPost: true }] })
       .populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 });
 
     const filteredPosts = posts.filter(p => p._id && p.authorId && p.content);
@@ -177,9 +174,10 @@ export async function registerRoutes(
 
   app.delete(api.posts.delete.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
+    const reqUser = await User.findById(userId).select('isAdmin');
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Not found" });
-    if (post.authorId.toString() !== userId) return res.status(403).json({ message: "Forbidden" });
+    if (post.authorId.toString() !== userId && !(reqUser as any)?.isAdmin) return res.status(403).json({ message: "Forbidden" });
     await Post.deleteOne({ _id: post._id });
     await Comment.deleteMany({ postId: post._id });
     res.status(200).json({ message: "Post deleted" });
@@ -640,22 +638,69 @@ export async function registerRoutes(
   app.put(api.admin.resolvePasswordRequest.path, adminOnly, async (req: Request, res: Response) => {
     const reqDoc = await ForgotPassword.findById(req.params.id);
     if (!reqDoc) return res.status(404).json({ message: "Not found" });
-    
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ message: "New password is required" });
+
+    let userPhone = (reqDoc as any).phone;
     if (reqDoc.userId) {
-      const hashedPassword = await bcrypt.hash(reqDoc.desiredPassword, 10);
-      await User.findByIdAndUpdate(reqDoc.userId, { password: hashedPassword });
-    } else {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const updated = await User.findByIdAndUpdate(reqDoc.userId, { password: hashedPassword }, { new: true }).select('phone');
+      if (updated) userPhone = (updated as any).phone || userPhone;
+    } else if (reqDoc.username) {
       const user = await User.findOne({ username: reqDoc.username });
       if (user) {
-        const hashedPassword = await bcrypt.hash(reqDoc.desiredPassword, 10);
-        user.password = hashedPassword;
+        user.password = await bcrypt.hash(password, 10);
         await user.save();
+        userPhone = (user as any).phone || userPhone;
       }
     }
-    
+
     reqDoc.status = "resolved";
     await reqDoc.save();
-    res.status(200).json({ message: "Password request resolved" });
+    res.status(200).json({ message: "Password updated", phone: userPhone });
+  });
+
+  app.post(api.admin.sendChat.path, authenticate, adminOnly, async (req: Request, res: Response) => {
+    const adminId = (req as any).userId;
+    const { userId } = req.params;
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ message: "Content required" });
+
+    let conversation = await Conversation.findOne({ participants: { $all: [adminId, userId] }, isAdminChat: true });
+    if (!conversation) {
+      conversation = new Conversation({ participants: [adminId, userId], isAdminChat: true });
+      await conversation.save();
+    }
+    const msg = new Message({ conversationId: conversation._id, senderId: adminId, content });
+    await msg.save();
+    conversation.lastMessage = content;
+    conversation.lastMessageAt = new Date();
+    (conversation as any).unreadBy = [userId];
+    await conversation.save();
+
+    await new Notification({ recipientId: userId, type: 'system', content: `Admin message: ${content.slice(0, 60)}` }).save();
+    res.status(201).json({ message: "Sent" });
+  });
+
+  app.post(api.admin.createPost.path, authenticate, adminOnly, async (req: Request, res: Response) => {
+    const adminId = (req as any).userId;
+    const { content } = req.body;
+    if (!content) return res.status(400).json({ message: "Content required" });
+    const post = new Post({ authorId: adminId, content, isAdminPost: true });
+    await post.save();
+    await post.populate('authorId', 'name username profilePicture lastSeen');
+    const doc = post.toJSON() as any;
+    doc.author = doc.authorId;
+    doc.likes = [];
+    res.status(201).json(doc);
+  });
+
+  app.delete(api.admin.deletePost.path, adminOnly, async (req: Request, res: Response) => {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Not found" });
+    await Post.deleteOne({ _id: post._id });
+    await Comment.deleteMany({ postId: post._id });
+    res.status(200).json({ message: "Post deleted" });
   });
 
   // Daily photos (stories)

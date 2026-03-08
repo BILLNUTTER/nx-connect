@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { Send, MessageSquare } from "lucide-react";
+import { Send, MessageSquare, Lock, ShieldAlert } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 
 export default function ChatsPage() {
@@ -115,8 +115,11 @@ function ActiveChat({
   const endRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
 
+  const { user: currentUser } = useAuth();
   const conv = conversations.find((c: any) => c.id === conversationId);
   const otherUser = conv?.otherUser;
+  const isAdminChat = !!conv?.isAdminChat;
+  const canReply = !isAdminChat || !!currentUser?.isAdmin;
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -135,7 +138,20 @@ function ActiveChat({
         <button onClick={onBack} className="md:hidden p-2 -ml-2 rounded-lg hover:bg-secondary text-muted-foreground">
           ← Back
         </button>
-        {otherUser ? (
+        {isAdminChat ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold shadow-md text-sm shrink-0">
+              NX
+            </div>
+            <div>
+              <div className="font-bold flex items-center gap-2">
+                NutterX Official
+                <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full font-bold border border-primary/20">ADMIN</span>
+              </div>
+              <div className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Read-only — no replies</div>
+            </div>
+          </div>
+        ) : otherUser ? (
           <button
             onClick={() => setLocation(`/profile/${otherUser.id || otherUser._id}`)}
             className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-xl px-1 py-0.5"
@@ -189,26 +205,33 @@ function ActiveChat({
         <div ref={endRef} />
       </div>
 
-      <div className="p-4 bg-card border-t border-border">
-        <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
-          <input
-            type="text"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 bg-transparent border-none outline-none text-foreground py-2"
-            data-testid="input-message"
-          />
-          <button
-            type="submit"
-            disabled={!content.trim() || sendMessage.isPending}
-            className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:scale-105 transition-transform shadow-md"
-            data-testid="button-send-message"
-          >
-            <Send className="w-4 h-4 ml-0.5" />
-          </button>
-        </form>
-      </div>
+      {canReply ? (
+        <div className="p-4 bg-card border-t border-border">
+          <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
+            <input
+              type="text"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1 bg-transparent border-none outline-none text-foreground py-2"
+              data-testid="input-message"
+            />
+            <button
+              type="submit"
+              disabled={!content.trim() || sendMessage.isPending}
+              className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:scale-105 transition-transform shadow-md"
+              data-testid="button-send-message"
+            >
+              <Send className="w-4 h-4 ml-0.5" />
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="p-4 bg-card border-t border-border flex items-center justify-center gap-2 text-muted-foreground text-sm">
+          <Lock className="w-4 h-4" />
+          <span>This is a read-only message from NutterX Admin. Replies are not allowed.</span>
+        </div>
+      )}
     </>
   );
 }

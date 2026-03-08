@@ -20,6 +20,7 @@ const postSchema = new mongoose.Schema({
   content: { type: String, required: true },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   hidden: { type: Boolean, default: false },
+  isAdminPost: { type: Boolean, default: false },
 }, { timestamps: true });
 
 const commentSchema = new mongoose.Schema({
@@ -40,6 +41,7 @@ const conversationSchema = new mongoose.Schema({
   lastMessage: { type: String, default: '' },
   lastMessageAt: { type: Date, default: null },
   unreadBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  isAdminChat: { type: Boolean, default: false },
 }, { timestamps: true });
 
 const notificationSchema = new mongoose.Schema({
@@ -53,8 +55,9 @@ const notificationSchema = new mongoose.Schema({
 
 const forgotPasswordSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  username: { type: String, required: true },
-  desiredPassword: { type: String, required: true },
+  username: { type: String },
+  phone: { type: String, required: true },
+  email: { type: String, required: true },
   status: { type: String, enum: ["pending", "resolved"], default: "pending" },
 }, { timestamps: true });
 

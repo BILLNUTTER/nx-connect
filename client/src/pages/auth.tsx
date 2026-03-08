@@ -15,7 +15,7 @@ export default function AuthPage() {
   const [success, setSuccess] = useState("");
 
   const [formData, setFormData] = useState({
-    name: "", username: "", phone: "", email: "", password: "", desiredPassword: ""
+    name: "", username: "", phone: "", email: "", password: ""
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,8 +36,8 @@ export default function AuthPage() {
         });
         setLocation("/home");
       } else if (tab === "forgot") {
-        await forgotPassword({ username: formData.username, desiredPassword: formData.desiredPassword });
-        setSuccess("Password reset request sent to admins.");
+        await forgotPassword({ phone: formData.phone, email: formData.email });
+        setSuccess("Request sent. Admin will set a password and contact you on the phone number provided.");
         setTab("login");
       }
     } catch (err: any) {
@@ -83,14 +83,20 @@ export default function AuthPage() {
               </>
             )}
             
-            <Input name="username" placeholder="Username" value={formData.username} onChange={handleChange} required />
-            
+            {tab !== "forgot" && (
+              <Input name="username" placeholder="Username" value={formData.username} onChange={handleChange} required />
+            )}
+
+            {tab === "forgot" && (
+              <>
+                <Input name="phone" placeholder="Your Phone Number" value={formData.phone} onChange={handleChange} required data-testid="input-forgot-phone" />
+                <Input name="email" type="email" placeholder="Your Email Address" value={formData.email} onChange={handleChange} required data-testid="input-forgot-email" />
+                <p className="text-xs text-muted-foreground text-center -mt-1">Provide the phone and email linked to your account. Admin will contact you with your new password.</p>
+              </>
+            )}
+
             {tab !== "forgot" && (
               <Input name="password" type="password" placeholder="Password" value={formData.password} onChange={handleChange} required minLength={6} />
-            )}
-            
-            {tab === "forgot" && (
-              <Input name="desiredPassword" type="password" placeholder="New Desired Password" value={formData.desiredPassword} onChange={handleChange} required minLength={6} />
             )}
 
             <Button type="submit" className="w-full mt-6 py-4" disabled={isLoggingIn || isSigningUp}>

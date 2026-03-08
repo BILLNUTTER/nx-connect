@@ -51,6 +51,7 @@ export const postSchema = z.object({
   }).optional(),
   content: z.string(),
   likes: z.array(z.string()).default([]),
+  isAdminPost: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();
@@ -107,6 +108,7 @@ export const conversationSchema = z.object({
   lastMessage: z.string().nullable().optional(),
   lastMessageAt: z.string().nullable().optional(),
   unreadCount: z.number().nullable().optional(),
+  isAdminChat: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();
@@ -132,9 +134,10 @@ export const notificationSchema = z.object({
 export const forgotPasswordSchema = z.object({
   id: z.string(),
   userId: z.string().optional(),
-  username: z.string(),
+  username: z.string().optional(),
   user: userSchema.optional(),
-  desiredPassword: z.string(),
+  phone: z.string(),
+  email: z.string(),
   status: z.enum(["pending", "resolved"]),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()

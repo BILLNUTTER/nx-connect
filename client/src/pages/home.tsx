@@ -56,7 +56,7 @@ export default function HomeFeed() {
         </div>
       ) : (
         posts?.map(post => (
-          <PostItem key={post.id} post={post} currentUserId={user?.id} />
+          <PostItem key={post.id} post={post} currentUserId={user?.id} isAdmin={!!user?.isAdmin} />
         ))
       )}
     </div>
@@ -504,7 +504,7 @@ function CreatePostBox() {
   );
 }
 
-function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string }) {
+function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?: string; isAdmin?: boolean }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
   const deletePost = useDeletePost();
@@ -515,6 +515,8 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
   const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
   const isOwn = authorId === currentUserId;
   const isHidden = (post as any).hidden;
+  const isAdminPost = !!(post as any).isAdminPost;
+  const canManage = isOwn || isAdmin;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -536,13 +538,18 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
             <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
           </button>
           <div className="flex-1 min-w-0">
-            <button
-              onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-              className="font-semibold text-foreground hover:underline text-left text-sm"
-              data-testid={`button-author-name-${post.id}`}
-            >
-              {post.author?.name}
-            </button>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => authorId && setLocation(`/profile/${authorId}`)}
+                className="font-semibold text-foreground hover:underline text-left text-sm"
+                data-testid={`button-author-name-${post.id}`}
+              >
+                {isAdminPost ? "NutterX Official" : post.author?.name}
+              </button>
+              {isAdminPost && (
+                <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full font-bold border border-primary/20">OFFICIAL</span>
+              )}
+            </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TimeAgo date={post.createdAt!} />
               <span>·</span>
@@ -551,7 +558,7 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
             </div>
           </div>
 
-          {isOwn && (
+          {canManage && (
             <div className="relative shrink-0" ref={menuRef}>
               <button
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); }}
@@ -561,21 +568,23 @@ function PostItem({ post, currentUserId }: { post: Post; currentUserId?: string 
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-44 overflow-hidden">
-                  <button
-                    onClick={() => { setMenuOpen(false); hidePost.mutate(post.id); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
-                    data-testid={`button-hide-post-${post.id}`}
-                  >
-                    {isHidden ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
-                    {isHidden ? "Unhide post" : "Hide from public"}
-                  </button>
+                <div className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-48 overflow-hidden">
+                  {isOwn && (
+                    <button
+                      onClick={() => { setMenuOpen(false); hidePost.mutate(post.id); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                      data-testid={`button-hide-post-${post.id}`}
+                    >
+                      {isHidden ? <Eye className="w-4 h-4 text-primary" /> : <EyeOff className="w-4 h-4 text-muted-foreground" />}
+                      {isHidden ? "Unhide post" : "Hide from public"}
+                    </button>
+                  )}
                   <button
                     onClick={() => { setMenuOpen(false); if (confirm("Delete this post?")) deletePost.mutate(post.id); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-destructive/10 transition-colors text-left text-destructive"
                     data-testid={`button-delete-post-${post.id}`}
                   >
-                    <Trash2 className="w-4 h-4" /> Delete post
+                    <Trash2 className="w-4 h-4" /> {isAdmin && !isOwn ? "Remove (violates rules)" : "Delete post"}
                   </button>
                 </div>
               )}

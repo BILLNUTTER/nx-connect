@@ -71,7 +71,7 @@ export function useAuth() {
   });
 
   const forgotPasswordMutation = useMutation({
-    mutationFn: async (req: { username: string; desiredPassword: string }) => {
+    mutationFn: async (req: { phone: string; email: string }) => {
       await apiFetch(api.auth.forgotPassword.path, {
         method: "POST",
         body: JSON.stringify(req),

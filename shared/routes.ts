@@ -235,6 +235,24 @@ export const api = {
     resolvePasswordRequest: {
       method: 'PUT' as const,
       path: '/api/admin/password-requests/:id/resolve' as const,
+      input: z.object({ password: z.string() }),
+      responses: { 200: z.object({ message: z.string(), phone: z.string().optional() }) }
+    },
+    sendChat: {
+      method: 'POST' as const,
+      path: '/api/admin/send-chat/:userId' as const,
+      input: z.object({ content: z.string() }),
+      responses: { 201: z.object({ message: z.string() }) }
+    },
+    createPost: {
+      method: 'POST' as const,
+      path: '/api/admin/posts' as const,
+      input: z.object({ content: z.string() }),
+      responses: { 201: postSchema }
+    },
+    deletePost: {
+      method: 'DELETE' as const,
+      path: '/api/admin/posts/:id' as const,
       responses: { 200: z.object({ message: z.string() }) }
     }
   },

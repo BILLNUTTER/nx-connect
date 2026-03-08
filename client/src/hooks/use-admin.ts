@@ -68,12 +68,39 @@ export function useAdminActions() {
   });
 
   const resolvePassword = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, password }: { id: string; password: string }): Promise<{ message: string; phone?: string }> => {
       const url = buildUrl(api.admin.resolvePasswordRequest.path, { id });
-      await apiFetch(url, { method: "PUT" });
+      const data = await apiFetch(url, { method: "PUT", body: JSON.stringify({ password }) });
+      return data as { message: string; phone?: string };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.admin.passwordRequests.path] }),
   });
 
-  return { restrictUser, reactivateUser, changePassword, sendNotification, resolvePassword };
+  const sendChat = useMutation({
+    mutationFn: async ({ userId, content }: { userId: string; content: string }) => {
+      const url = buildUrl(api.admin.sendChat.path, { userId });
+      await apiFetch(url, { method: "POST", body: JSON.stringify({ content }) });
+    },
+  });
+
+  const createAdminPost = useMutation({
+    mutationFn: async (content: string) => {
+      const data = await apiFetch(api.admin.createPost.path, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.posts.list.path] }),
+  });
+
+  const adminDeletePost = useMutation({
+    mutationFn: async (id: string) => {
+      const url = buildUrl(api.admin.deletePost.path, { id });
+      await apiFetch(url, { method: "DELETE" });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.posts.list.path] }),
+  });
+
+  return { restrictUser, reactivateUser, changePassword, sendNotification, resolvePassword, sendChat, createAdminPost, adminDeletePost };
 }
