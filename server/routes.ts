@@ -98,12 +98,14 @@ export async function registerRoutes(
   // Post Routes
   app.get(api.posts.list.path, authenticate, async (req: Request, res: Response) => {
     const posts = await Post.find().populate('authorId', 'name username profilePicture').sort({ createdAt: -1 });
-    // Transform authorId to author for response matching schema
-    const formattedPosts = posts.map(p => {
-      const doc = p.toJSON();
-      doc.author = doc.authorId;
-      return doc;
-    });
+    // Transform authorId to author for response matching schema, filter out bad posts
+    const formattedPosts = posts
+      .filter(p => p._id && p.authorId && p.content) // Filter out invalid posts
+      .map(p => {
+        const doc = p.toJSON();
+        doc.author = doc.authorId;
+        return doc;
+      });
     res.status(200).json(formattedPosts);
   });
 
@@ -208,7 +210,7 @@ export async function registerRoutes(
 
     const excludeIds = [userId, ...me.friends, ...me.friendRequests, ...me.sentRequests];
     const users = await User.find({ _id: { $nin: excludeIds }, isAdmin: false })
-      .select('-password -phone -email')
+      .select('name username profilePicture _id')
       .limit(20);
       
     res.status(200).json(users.map(u => u.toJSON()));

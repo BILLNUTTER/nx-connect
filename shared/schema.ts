@@ -1,21 +1,25 @@
 import { z } from "zod";
 
 export const userSchema = z.object({
-  id: z.string(),
-  name: z.string(),
+  id: z.string().nullable().optional(),
+  name: z.string().optional(),
+  fullName: z.string().optional(),
   username: z.string(),
-  phone: z.string(),
-  email: z.string().email(),
-  password: z.string().min(6),
+  phone: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  email: z.string().email().optional(),
+  password: z.string().min(6).optional(),
   profilePicture: z.string().optional(),
+  profilePhoto: z.string().optional(),
   isAdmin: z.boolean().default(false),
+  isRestricted: z.boolean().optional(),
   status: z.enum(["active", "restricted"]).default("active"),
   friends: z.array(z.string()).default([]),
   friendRequests: z.array(z.string()).default([]),
   sentRequests: z.array(z.string()).default([]),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
-});
+}).passthrough();
 
 export const insertUserSchema = userSchema.pick({
   name: true,
@@ -31,13 +35,13 @@ export const loginUserSchema = z.object({
 });
 
 export const postSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable().optional(),
   authorId: z.string().or(z.object({
     id: z.string(),
     name: z.string(),
     username: z.string(),
     profilePicture: z.string().optional(),
-  })),
+  })).optional(),
   author: z.object({
     id: z.string(),
     name: z.string(),
@@ -48,7 +52,7 @@ export const postSchema = z.object({
   likes: z.array(z.string()).default([]),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
-});
+}).passthrough();
 
 export const insertPostSchema = postSchema.pick({
   content: true,
