@@ -58,10 +58,10 @@ export function useAuth() {
   };
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (profilePicture: string) => {
+    mutationFn: async (updates: { profilePicture?: string; name?: string; username?: string; phone?: string }) => {
       const data = await apiFetch(api.auth.updateProfile.path, {
         method: "PUT",
-        body: JSON.stringify({ profilePicture }),
+        body: JSON.stringify(updates),
       });
       return parseWithLogging(api.auth.updateProfile.responses[200], data, "auth.updateProfile");
     },

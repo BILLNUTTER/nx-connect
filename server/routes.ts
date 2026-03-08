@@ -106,8 +106,17 @@ export async function registerRoutes(
 
   app.put(api.auth.updateProfile.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
-    const { profilePicture } = req.body;
-    const user = await User.findByIdAndUpdate(userId, { profilePicture }, { new: true });
+    const { profilePicture, name, username, phone } = req.body;
+    const updates: any = {};
+    if (profilePicture !== undefined) updates.profilePicture = profilePicture;
+    if (name?.trim()) updates.name = name.trim();
+    if (phone?.trim()) updates.phone = phone.trim();
+    if (username?.trim()) {
+      const existing = await User.findOne({ username: username.trim(), _id: { $ne: userId } });
+      if (existing) return res.status(400).json({ message: "Username already taken" });
+      updates.username = username.trim();
+    }
+    const user = await User.findByIdAndUpdate(userId, updates, { new: true });
     if (!user) return res.status(404).json({ message: "Not found" });
     res.status(200).json(user.toJSON());
   });
@@ -163,11 +172,13 @@ export async function registerRoutes(
       post.likes.push(userId);
       // Notify author
       if (post.authorId.toString() !== userId) {
+        const liker = await User.findById(userId).select('name');
         await new Notification({
           recipientId: post.authorId,
           senderId: userId,
           type: 'like',
-          postId: post._id
+          postId: post._id,
+          content: `${liker?.name || 'Someone'} liked your post`
         }).save();
       }
     } else {
@@ -215,11 +226,13 @@ export async function registerRoutes(
     await comment.populate('authorId', 'name username profilePicture');
     
     if (post.authorId.toString() !== userId) {
+      const commenter = await User.findById(userId).select('name');
       await new Notification({
         recipientId: post.authorId,
         senderId: userId,
         type: 'comment',
-        postId: post._id
+        postId: post._id,
+        content: `${commenter?.name || 'Someone'} commented on your post`
       }).save();
     }
 

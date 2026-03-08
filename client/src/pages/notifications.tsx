@@ -17,15 +17,24 @@ export default function NotificationsPage() {
   const getSenderId = (notif: any) =>
     notif.senderId?.id || notif.senderId?._id || (typeof notif.senderId === "string" ? notif.senderId : null);
 
+  const getPostId = (notif: any) => {
+    const p = notif.postId;
+    if (!p) return null;
+    return typeof p === "string" ? p : (p.id || p._id);
+  };
+
   const handleNotifClick = (notif: any) => {
     if (!notif.read) markRead.mutate(notif.id);
     const senderId = getSenderId(notif);
+    const postId = getPostId(notif);
     if (notif.type === "friend_request") {
       setLocation("/friends");
     } else if (notif.type === "friend_accept" && senderId) {
       setLocation(`/profile/${senderId}`);
-    } else if ((notif.type === "like" || notif.type === "comment" || notif.type === "friend_post") && notif.postId) {
-      setLocation("/home");
+    } else if ((notif.type === "like" || notif.type === "comment") && postId) {
+      setLocation(`/post/${postId}`);
+    } else if (notif.type === "friend_post" && postId) {
+      setLocation(`/post/${postId}`);
     }
   };
 
