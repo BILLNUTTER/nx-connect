@@ -47,12 +47,22 @@ export default function UserProfilePage() {
         <ArrowLeft className="w-5 h-5" /> Back
       </button>
 
-      <Card className="text-center py-10">
-        <div className="flex justify-center mb-4">
-          <Avatar url={profile.profilePicture} name={profile.name || "U"} size="xl" online={isOnline((profile as any).lastSeen)} />
+      <Card className="p-0 overflow-hidden">
+        <div className="relative h-32">
+          {(profile as any).coverPhoto ? (
+            <img src={(profile as any).coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-primary/30 via-accent/20 to-primary/10" />
+          )}
         </div>
-        <h1 className="text-3xl font-display font-bold" data-testid="text-profile-name">{profile.name}</h1>
-        <p className="text-muted-foreground mt-1">@{profile.username}</p>
+        <div className="text-center pb-6 px-6">
+          <div className="flex justify-center -mt-10 mb-3">
+            <div className="ring-4 ring-card rounded-full">
+              <Avatar url={profile.profilePicture} name={profile.name || "U"} size="xl" online={isOnline((profile as any).lastSeen)} />
+            </div>
+          </div>
+          <h1 className="text-3xl font-display font-bold" data-testid="text-profile-name">{profile.name}</h1>
+          <p className="text-muted-foreground mt-1">@{profile.username}</p>
 
         <div className="flex justify-center gap-8 mt-6 mb-6">
           <div className="text-center">
@@ -98,6 +108,7 @@ export default function UserProfilePage() {
             )}
           </div>
         )}
+        </div>
       </Card>
 
       <h2 className="text-xl font-bold px-1">{isSelf ? "Your Posts" : `${profile.name}'s Posts`}</h2>

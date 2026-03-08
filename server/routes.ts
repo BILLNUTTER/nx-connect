@@ -103,9 +103,10 @@ export async function registerRoutes(
 
   app.put(api.auth.updateProfile.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
-    const { profilePicture, name, username, phone } = req.body;
+    const { profilePicture, coverPhoto, name, username, phone } = req.body;
     const updates: any = {};
     if (profilePicture !== undefined) updates.profilePicture = profilePicture;
+    if (coverPhoto !== undefined) updates.coverPhoto = coverPhoto;
     if (name?.trim()) updates.name = name.trim();
     if (phone?.trim()) updates.phone = phone.trim();
     if (username?.trim()) {

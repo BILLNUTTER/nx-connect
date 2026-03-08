@@ -1,20 +1,45 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserPosts } from "@/hooks/use-users";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import { Card, Button, Input, Avatar, TimeAgo, LinkedText } from "@/components/ui/shared";
-import { Camera, LogOut, Pencil, X, User, AtSign, Phone, Mail, Users, Eye, EyeOff, Trash2, ThumbsUp, MessageCircle, Globe } from "lucide-react";
+import { Camera, LogOut, Pencil, X, User, AtSign, Phone, Mail, Users, Eye, EyeOff, Trash2, ThumbsUp, MessageCircle, Globe, ImagePlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post } from "@shared/schema";
+
+async function compressImage(file: File, maxWidth = 900, quality = 0.78): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target!.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function ProfilePage() {
   const { user, updateProfile, logout } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [photoUrl, setPhotoUrl] = useState("");
-  const [isUpdatingPhoto, setIsUpdatingPhoto] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const [editName, setEditName] = useState("");
   const [editUsername, setEditUsername] = useState("");
@@ -51,32 +76,104 @@ export default function ProfilePage() {
     }
   };
 
-  const handleUpdatePhoto = async () => {
-    if (!photoUrl.trim()) return;
-    setIsUpdatingPhoto(true);
+  const handleAvatarFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
     try {
-      await updateProfile({ profilePicture: photoUrl.trim() });
-      setPhotoUrl("");
-      toast({ title: "Photo updated!", description: "Your profile picture has been changed." });
+      const compressed = await compressImage(file, 400, 0.82);
+      await updateProfile({ profilePicture: compressed });
+      toast({ title: "Profile photo updated!" });
     } catch {
-      toast({ title: "Error", description: "Could not update photo", variant: "destructive" });
+      toast({ title: "Error", description: "Could not upload photo", variant: "destructive" });
     } finally {
-      setIsUpdatingPhoto(false);
+      setIsUploadingAvatar(false);
+      e.target.value = "";
     }
   };
+
+  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingCover(true);
+    try {
+      const compressed = await compressImage(file, 1200, 0.80);
+      await updateProfile({ coverPhoto: compressed });
+      toast({ title: "Cover photo updated!" });
+    } catch {
+      toast({ title: "Error", description: "Could not upload cover photo", variant: "destructive" });
+    } finally {
+      setIsUploadingCover(false);
+      e.target.value = "";
+    }
+  };
+
+  const coverPhoto = (user as any).coverPhoto;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-20">
       <Card className="relative overflow-hidden p-0">
-        <div className="h-28 bg-gradient-to-r from-primary/30 via-accent/20 to-primary/10" />
+        <div className="relative h-36 group/cover">
+          {coverPhoto ? (
+            <img src={coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-primary/30 via-accent/20 to-primary/10" />
+          )}
+          <button
+            onClick={() => coverInputRef.current?.click()}
+            disabled={isUploadingCover}
+            className="absolute inset-0 bg-black/0 group-hover/cover:bg-black/30 transition-all flex items-center justify-center opacity-0 group-hover/cover:opacity-100"
+            data-testid="button-upload-cover"
+            title="Change cover photo"
+          >
+            {isUploadingCover ? (
+              <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : (
+              <div className="flex flex-col items-center gap-1.5 text-white">
+                <ImagePlus className="w-6 h-6 drop-shadow" />
+                <span className="text-xs font-semibold drop-shadow">Change Cover</span>
+              </div>
+            )}
+          </button>
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverFile}
+            data-testid="input-cover-file"
+          />
+        </div>
+
         <div className="px-6 pb-6 -mt-12">
           <div className="flex items-end justify-between mb-4">
-            <div className="relative group">
-              <Avatar url={user.profilePicture} name={user.name} size="xl" online />
-              <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                <Camera className="w-6 h-6 text-white" />
+            <div className="relative group/avatar">
+              <div className="ring-4 ring-card rounded-full">
+                <Avatar url={user.profilePicture} name={user.name} size="xl" online />
               </div>
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={isUploadingAvatar}
+                className="absolute inset-0 bg-black/0 group-hover/avatar:bg-black/45 rounded-full transition-all flex items-center justify-center opacity-0 group-hover/avatar:opacity-100"
+                data-testid="button-upload-avatar"
+                title="Change profile photo"
+              >
+                {isUploadingAvatar ? (
+                  <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Camera className="w-5 h-5 text-white drop-shadow" />
+                )}
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarFile}
+                data-testid="input-avatar-file"
+              />
             </div>
+
             {!isEditing ? (
               <Button variant="outline" size="sm" onClick={startEditing} data-testid="button-edit-profile" className="flex items-center gap-2">
                 <Pencil className="w-3.5 h-3.5" /> Edit Profile
@@ -97,6 +194,7 @@ export default function ProfilePage() {
             <>
               <h2 className="text-2xl font-bold">{user.name}</h2>
               <p className="text-primary font-medium">@{user.username}</p>
+              <p className="text-xs text-muted-foreground mt-1">Tap the cover or avatar to change photos from your gallery</p>
             </>
           ) : (
             <div className="space-y-3 mt-2">
@@ -122,6 +220,46 @@ export default function ProfilePage() {
           )}
         </div>
       </Card>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => avatarInputRef.current?.click()}
+          disabled={isUploadingAvatar}
+          className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
+          data-testid="button-change-profile-photo"
+        >
+          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+            {isUploadingAvatar ? (
+              <div className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+            ) : (
+              <Camera className="w-5 h-5 text-primary" />
+            )}
+          </div>
+          <div>
+            <div className="font-semibold text-sm">Profile Photo</div>
+            <div className="text-xs text-muted-foreground">From gallery</div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => coverInputRef.current?.click()}
+          disabled={isUploadingCover}
+          className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
+          data-testid="button-change-cover-photo"
+        >
+          <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center shrink-0">
+            {isUploadingCover ? (
+              <div className="w-4 h-4 border-2 border-accent/40 border-t-accent rounded-full animate-spin" />
+            ) : (
+              <ImagePlus className="w-5 h-5 text-accent" />
+            )}
+          </div>
+          <div>
+            <div className="font-semibold text-sm">Cover Photo</div>
+            <div className="text-xs text-muted-foreground">From gallery</div>
+          </div>
+        </button>
+      </div>
 
       <Card>
         <h3 className="text-base font-bold mb-4 text-foreground">Account Details</h3>
@@ -162,18 +300,6 @@ export default function ProfilePage() {
               <p className="text-sm font-bold text-foreground">{user.friends.length}</p>
             </div>
           </div>
-        </div>
-      </Card>
-
-      <Card>
-        <h3 className="text-base font-bold mb-4 flex items-center gap-2">
-          <Camera className="w-4 h-4 text-primary" /> Update Profile Picture
-        </h3>
-        <div className="flex gap-3">
-          <Input placeholder="Paste image URL..." value={photoUrl} onChange={e => setPhotoUrl(e.target.value)} data-testid="input-photo-url" />
-          <Button onClick={handleUpdatePhoto} disabled={isUpdatingPhoto || !photoUrl.trim()} data-testid="button-update-photo">
-            {isUpdatingPhoto ? "Saving..." : "Update"}
-          </Button>
         </div>
       </Card>
 
@@ -272,8 +398,16 @@ function OwnPostCard({ post, currentUserId }: { post: Post; currentUserId?: stri
           className="w-full text-left"
           data-testid={`button-open-post-${post.id}`}
         >
-          <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground line-clamp-5"><LinkedText text={post.content} /></p>
+          {((post as any).content !== "📷" || !(post as any).imageUrl) && (
+            <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground line-clamp-5"><LinkedText text={post.content} /></p>
+          )}
         </button>
+
+        {(post as any).imageUrl && (
+          <div className="mt-2 rounded-lg overflow-hidden border border-border/40 cursor-pointer" onClick={() => setLocation(`/post/${post.id}`)}>
+            <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[200px]" />
+          </div>
+        )}
       </div>
 
       <div className="border-t border-border/50 mx-4" />
