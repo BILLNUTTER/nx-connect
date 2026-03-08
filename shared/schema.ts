@@ -32,8 +32,18 @@ export const loginUserSchema = z.object({
 
 export const postSchema = z.object({
   id: z.string(),
-  authorId: z.string(),
-  author: userSchema.optional(),
+  authorId: z.string().or(z.object({
+    id: z.string(),
+    name: z.string(),
+    username: z.string(),
+    profilePicture: z.string().optional(),
+  })),
+  author: z.object({
+    id: z.string(),
+    name: z.string(),
+    username: z.string(),
+    profilePicture: z.string().optional(),
+  }).optional(),
   content: z.string(),
   likes: z.array(z.string()).default([]),
   createdAt: z.string().datetime().optional(),
@@ -47,8 +57,18 @@ export const insertPostSchema = postSchema.pick({
 export const commentSchema = z.object({
   id: z.string(),
   postId: z.string(),
-  authorId: z.string(),
-  author: userSchema.optional(),
+  authorId: z.string().or(z.object({
+    id: z.string(),
+    name: z.string(),
+    username: z.string(),
+    profilePicture: z.string().optional(),
+  })),
+  author: z.object({
+    id: z.string(),
+    name: z.string(),
+    username: z.string(),
+    profilePicture: z.string().optional(),
+  }).optional(),
   content: z.string(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
