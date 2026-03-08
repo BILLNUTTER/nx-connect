@@ -3,7 +3,7 @@ import { useConversations, useMessages, useSendMessage, useGetOrCreateConversati
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, TimeAgo } from "@/components/ui/shared";
 import { Send, MessageSquare } from "lucide-react";
-import { useSearch } from "wouter";
+import { useSearch, useLocation } from "wouter";
 
 export default function ChatsPage() {
   const { data: conversations, isLoading } = useConversations();
@@ -113,6 +113,7 @@ function ActiveChat({
   const sendMessage = useSendMessage();
   const [content, setContent] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
+  const [, setLocation] = useLocation();
 
   const conv = conversations.find((c: any) => c.id === conversationId);
   const otherUser = conv?.otherUser;
@@ -135,13 +136,17 @@ function ActiveChat({
           ← Back
         </button>
         {otherUser ? (
-          <>
+          <button
+            onClick={() => setLocation(`/profile/${otherUser.id || otherUser._id}`)}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-xl px-1 py-0.5"
+            data-testid={`button-chat-view-profile-${otherUser.id || otherUser._id}`}
+          >
             <Avatar url={otherUser.profilePicture} name={otherUser.name || "U"} size="sm" />
-            <div>
-              <div className="font-bold">{otherUser.name}</div>
-              <div className="text-xs text-muted-foreground">@{otherUser.username}</div>
+            <div className="text-left">
+              <div className="font-bold hover:text-primary transition-colors">{otherUser.name}</div>
+              <div className="text-xs text-muted-foreground">@{otherUser.username} · tap to view profile</div>
             </div>
-          </>
+          </button>
         ) : (
           <div className="font-bold text-lg">Conversation</div>
         )}

@@ -114,11 +114,21 @@ function RequestsTab() {
 
 function UserCard({ user, children }: { user: User, children: React.ReactNode }) {
   const displayName = user.name || user.fullName || user.username || "Unknown";
+  const [, setLocation] = useLocation();
   return (
     <Card className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left hover:border-primary/30 transition-colors">
-      <Avatar url={user.profilePicture} name={displayName} size="lg" />
-      <div className="flex-1">
-        <h3 className="font-bold text-lg">{displayName}</h3>
+      <button
+        onClick={() => setLocation(`/profile/${user.id}`)}
+        className="shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/40"
+        data-testid={`button-view-profile-${user.id}`}
+      >
+        <Avatar url={user.profilePicture} name={displayName} size="lg" />
+      </button>
+      <div
+        className="flex-1 cursor-pointer"
+        onClick={() => setLocation(`/profile/${user.id}`)}
+      >
+        <h3 className="font-bold text-lg hover:text-primary transition-colors">{displayName}</h3>
         <p className="text-muted-foreground text-sm">@{user.username}</p>
       </div>
       <div>{children}</div>
