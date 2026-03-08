@@ -15,6 +15,7 @@ import FriendsPage from "./pages/friends";
 import ChatsPage from "./pages/chats";
 import NotificationsPage from "./pages/notifications";
 import ProfilePage from "./pages/profile";
+import UserProfilePage from "./pages/user-profile";
 import AdminDashboard from "./pages/admin";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -67,6 +68,9 @@ function Router() {
       </Route>
       <Route path="/profile">
         <ProtectedRoute component={ProfilePage} />
+      </Route>
+      <Route path="/profile/:id">
+        <ProtectedRoute component={UserProfilePage} />
       </Route>
 
       <Route>

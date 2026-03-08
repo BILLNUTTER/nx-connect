@@ -231,8 +231,7 @@ export async function registerRoutes(
     const users = await User.find({ 
       _id: { $nin: excludeIds }, 
       isAdmin: false, 
-      name: { $exists: true, $ne: "" },
-      createdAt: { $gt: me.createdAt }  // Only show users who joined after current user
+      name: { $exists: true, $ne: "" }
     })
       .select('name username profilePicture _id')
       .limit(20);
@@ -332,9 +331,21 @@ export async function registerRoutes(
   });
 
   app.get(api.users.profile.path, authenticate, async (req: Request, res: Response) => {
-    const user = await User.findById(req.params.id).select('name username profilePicture');
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "Not found" });
     res.status(200).json(user.toJSON());
+  });
+
+  app.get(api.users.posts.path, authenticate, async (req: Request, res: Response) => {
+    const posts = await Post.find({ authorId: req.params.id })
+      .populate('authorId', 'name username profilePicture')
+      .sort({ createdAt: -1 });
+    const formatted = posts.map(p => {
+      const doc = p.toJSON() as any;
+      doc.author = doc.authorId;
+      return doc;
+    });
+    res.status(200).json(formatted);
   });
 
   // Chats

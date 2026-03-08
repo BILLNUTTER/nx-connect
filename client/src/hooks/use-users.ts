@@ -89,6 +89,18 @@ export function useUserProfile(id: string) {
   });
 }
 
+export function useUserPosts(id: string) {
+  return useQuery({
+    queryKey: [api.users.posts.path, id],
+    queryFn: async () => {
+      const url = buildUrl(api.users.posts.path, { id });
+      const data = await apiFetch(url);
+      return parseWithLogging(api.users.posts.responses[200], data, "users.posts");
+    },
+    enabled: !!id,
+  });
+}
+
 export function useAuthUser() {
   return useQuery({
     queryKey: [api.auth.me.path],

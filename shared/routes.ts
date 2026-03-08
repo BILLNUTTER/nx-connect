@@ -127,6 +127,11 @@ export const api = {
       method: 'GET' as const,
       path: '/api/users/:id' as const,
       responses: { 200: userSchema, 404: errorSchemas.notFound }
+    },
+    posts: {
+      method: 'GET' as const,
+      path: '/api/users/:id/posts' as const,
+      responses: { 200: z.array(postSchema) }
     }
   },
   chats: {
