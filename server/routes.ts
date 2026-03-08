@@ -219,15 +219,21 @@ export async function registerRoutes(
     res.status(201).json(doc);
   });
 
-  // Users (Friends, Discover) - Only show users with no pending requests or existing friendship
+  // Users (Friends, Discover) - Only show users who joined AFTER current user, no pending requests or existing friendship
   app.get(api.users.discover.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const me = await User.findById(userId);
     if (!me) return res.status(401).json({ message: "Unauthorized" });
 
     // Exclude: self, friends, people we sent requests to, people who sent us requests
+    // Also exclude users who joined before current user (only show newer users)
     const excludeIds = [userId, ...me.friends, ...me.friendRequests, ...me.sentRequests];
-    const users = await User.find({ _id: { $nin: excludeIds }, isAdmin: false, name: { $exists: true, $ne: "" } })
+    const users = await User.find({ 
+      _id: { $nin: excludeIds }, 
+      isAdmin: false, 
+      name: { $exists: true, $ne: "" },
+      createdAt: { $gt: me.createdAt }  // Only show users who joined after current user
+    })
       .select('name username profilePicture _id')
       .limit(20);
       
