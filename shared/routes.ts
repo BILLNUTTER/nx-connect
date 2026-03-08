@@ -186,6 +186,11 @@ export const api = {
       method: 'PUT' as const,
       path: '/api/notifications/:id/read' as const,
       responses: { 200: notificationSchema }
+    },
+    readAll: {
+      method: 'PUT' as const,
+      path: '/api/notifications/read-all' as const,
+      responses: { 200: z.object({ updated: z.number() }) }
     }
   },
   admin: {

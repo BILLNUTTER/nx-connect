@@ -564,6 +564,12 @@ export async function registerRoutes(
     res.status(200).json(formatted);
   });
 
+  app.put(api.notifications.readAll.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const result = await Notification.updateMany({ recipientId: userId, read: false }, { read: true });
+    res.status(200).json({ updated: result.modifiedCount });
+  });
+
   app.put(api.notifications.markRead.path, authenticate, async (req: Request, res: Response) => {
     const notif = await Notification.findByIdAndUpdate(req.params.id, { read: true }, { new: true });
     res.status(200).json(notif?.toJSON());
