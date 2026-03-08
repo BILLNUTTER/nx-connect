@@ -4,6 +4,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { LoadingScreen } from "@/components/ui/loading";
 
 import { useAuth } from "./hooks/use-auth";
 import { Layout } from "./components/layout";
@@ -29,7 +30,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     }
   }, [user, isLoading, setLocation]);
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background text-primary font-display text-2xl font-bold animate-pulse">Loading NX...</div>;
+  if (isLoading) return <LoadingScreen label="Loading your profile..." />;
   if (!user) return null;
 
   return <Component />;
@@ -40,7 +41,7 @@ function Router() {
   const { user, isLoading } = useAuth();
   const isSearchAdmin = window.location.search.includes("admin=true");
 
-  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background text-primary font-display text-2xl font-bold animate-pulse">Loading NX...</div>;
+  if (isLoading) return <LoadingScreen />;
 
   // Intercept Admin Route
   if (isSearchAdmin || location === "/admin") {

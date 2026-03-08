@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Camera, ChevronDown, Search, X, FileText } from "lucide-react";
+import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Camera, ChevronDown, Search, X, FileText, MapPin, Phone, Mail, Instagram } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useFriendRequests } from "@/hooks/use-users";
@@ -296,6 +296,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 w-full max-w-4xl mx-auto p-4 animate-in">
         {children}
       </main>
+
+      <footer className="border-t border-border/40 bg-secondary/10 mt-8">
+        <div className="max-w-4xl mx-auto px-4 py-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-sans font-black text-xs shadow-md">NX</div>
+              <div>
+                <div className="font-sans font-bold text-sm leading-none">NX-Connect</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1"><MapPin className="w-2.5 h-2.5" /> Nairobi, Kenya</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              <a href="tel:+254758891491" className="flex items-center gap-1 hover:text-foreground transition-colors"><Phone className="w-3 h-3" /> 0758 891 491</a>
+              <a href="tel:+254713881613" className="flex items-center gap-1 hover:text-foreground transition-colors"><Phone className="w-3 h-3" /> 0713 881 613</a>
+              <a href="mailto:nutterxapp@gmail.com" className="flex items-center gap-1 hover:text-foreground transition-colors"><Mail className="w-3 h-3" /> nutterxapp@gmail.com</a>
+              <a href="https://www.instagram.com/nutterx_?igsh=MTkwcWNya2Y0bTgzcw==" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground transition-colors"><Instagram className="w-3 h-3" /> @nutterx_</a>
+            </div>
+          </div>
+          <div className="text-[11px] text-muted-foreground text-center mt-4 pt-4 border-t border-border/30">
+            © {new Date().getFullYear()} NX-Connect · Nairobi, Kenya · All rights reserved.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
