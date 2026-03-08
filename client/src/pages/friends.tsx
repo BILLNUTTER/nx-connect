@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend } from "@/hooks/use-users";
+import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { Card, Button, Avatar } from "@/components/ui/shared";
-import { UserPlus, UserCheck, UserMinus, Search } from "lucide-react";
+import { UserPlus, UserCheck, UserMinus } from "lucide-react";
 import type { User } from "@shared/schema";
 
 export default function FriendsPage() {
@@ -38,18 +38,27 @@ export default function FriendsPage() {
 
 function DiscoverTab() {
   const { data: users, isLoading } = useDiscoverUsers();
+  const { data: currentUser } = useAuthUser();
   const sendReq = useSendFriendRequest();
 
   if (isLoading) return <div className="col-span-full text-center py-10">Loading suggestions...</div>;
   if (!users?.length) return <div className="col-span-full text-center py-10 text-muted-foreground">No new people to discover right now.</div>;
 
-  return users.map(user => (
-    <UserCard key={user.id} user={user}>
-      <Button size="sm" onClick={() => sendReq.mutate(user.id)} disabled={sendReq.isPending}>
-        <UserPlus className="w-4 h-4 mr-2" /> Add Friend
-      </Button>
-    </UserCard>
-  ));
+  return users.map(user => {
+    const isRequestPending = currentUser?.sentRequests?.includes(user.id as string) || false;
+    return (
+      <UserCard key={user.id} user={user}>
+        <Button 
+          size="sm" 
+          onClick={() => sendReq.mutate(user.id as string)} 
+          disabled={sendReq.isPending || isRequestPending}
+          variant={isRequestPending ? "outline" : "default"}
+        >
+          <UserPlus className="w-4 h-4 mr-2" /> {isRequestPending ? "Request Sent" : "Add Friend"}
+        </Button>
+      </UserCard>
+    );
+  });
 }
 
 function FriendsListTab() {

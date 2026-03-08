@@ -213,12 +213,13 @@ export async function registerRoutes(
     res.status(201).json(doc);
   });
 
-  // Users (Friends, Discover)
+  // Users (Friends, Discover) - Only show users with no pending requests or existing friendship
   app.get(api.users.discover.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const me = await User.findById(userId);
     if (!me) return res.status(401).json({ message: "Unauthorized" });
 
+    // Exclude: self, friends, people we sent requests to, people who sent us requests
     const excludeIds = [userId, ...me.friends, ...me.friendRequests, ...me.sentRequests];
     const users = await User.find({ _id: { $nin: excludeIds }, isAdmin: false, name: { $exists: true, $ne: "" } })
       .select('name username profilePicture _id')

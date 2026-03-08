@@ -86,3 +86,19 @@ export function useUserProfile(id: string) {
     enabled: !!id,
   });
 }
+
+export function useAuthUser() {
+  return useQuery({
+    queryKey: [api.auth.me.path],
+    queryFn: async () => {
+      try {
+        const data = await apiFetch(api.auth.me.path);
+        return parseWithLogging(api.auth.me.responses[200], data, "auth.me");
+      } catch {
+        return null;
+      }
+    },
+    retry: false,
+    staleTime: Infinity,
+  });
+}
