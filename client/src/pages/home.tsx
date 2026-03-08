@@ -131,6 +131,8 @@ function StoriesBar() {
 
 function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => void }) {
   const [, setLocation] = useLocation();
+  const [progress, setProgress] = useState(100);
+  const DURATION = 4000;
   const expiresAt = photo.expiresAt ? new Date(photo.expiresAt) : null;
   const hoursLeft = expiresAt ? Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 3600000)) : null;
 
@@ -138,6 +140,23 @@ function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => voi
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    const start = performance.now();
+    let raf: number;
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const remaining = Math.max(0, 100 - (elapsed / DURATION) * 100);
+      setProgress(remaining);
+      if (elapsed < DURATION) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        onClose();
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
   }, [onClose]);
 
   return (
@@ -156,6 +175,15 @@ function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => voi
         </button>
 
         <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+          <div className="absolute top-0 left-0 right-0 z-10 px-2 pt-2">
+            <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white rounded-full"
+                style={{ width: `${progress}%` }}
+                data-testid="story-progress-bar"
+              />
+            </div>
+          </div>
           <img src={photo.imageUrl} alt={photo.caption || "Story"} className="w-full object-cover max-h-[75vh]" />
 
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4">
