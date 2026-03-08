@@ -3,6 +3,7 @@ import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Camera, Che
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useFriendRequests } from "@/hooks/use-users";
+import { useConversations } from "@/hooks/use-chats";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { Avatar, isOnline } from "@/components/ui/shared";
@@ -176,11 +177,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { data: notifications } = useNotifications();
   const { data: friendRequests } = useFriendRequests();
+  const { data: conversations } = useConversations();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const unreadNotifCount = notifications?.filter((n) => !n.read).length || 0;
   const pendingRequestCount = friendRequests?.length || 0;
+  const unreadChatCount = (conversations as any[])?.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0) || 0;
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -197,7 +200,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/home", icon: Home, label: "Home", badge: 0 },
     { href: "/friends", icon: Users, label: "Friends", badge: pendingRequestCount },
-    { href: "/chats", icon: MessageCircle, label: "Chats", badge: 0 },
+    { href: "/chats", icon: MessageCircle, label: "Chats", badge: unreadChatCount },
     { href: "/notifications", icon: Bell, label: "Notifications", badge: unreadNotifCount },
   ];
 
