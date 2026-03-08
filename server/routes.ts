@@ -4,7 +4,7 @@ import bcrypt from "bcrypt";
 import { api, errorSchemas } from "@shared/routes";
 import { z } from "zod";
 import { connectDB } from "./db";
-import { User, Post, Comment, Message, Conversation, Notification, ForgotPassword } from "./models";
+import { User, Post, Comment, Message, Conversation, Notification, ForgotPassword, DailyPhoto } from "./models";
 import { generateToken, authenticate, adminOnly } from "./auth";
 
 export async function registerRoutes(
@@ -656,6 +656,50 @@ export async function registerRoutes(
     reqDoc.status = "resolved";
     await reqDoc.save();
     res.status(200).json({ message: "Password request resolved" });
+  });
+
+  // Daily photos (stories)
+  app.get('/api/photos/my-today', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const photo = await DailyPhoto.findOne({ authorId: userId, createdAt: { $gte: since } })
+      .populate('authorId', 'name username profilePicture lastSeen');
+    if (!photo) return res.json({ hasPosted: false });
+    const doc = photo.toObject() as any;
+    res.json({ hasPosted: true, photo: { ...doc, id: doc._id?.toString(), author: doc.authorId ? { id: doc.authorId._id?.toString(), name: doc.authorId.name, username: doc.authorId.username, profilePicture: doc.authorId.profilePicture, lastSeen: doc.authorId.lastSeen } : undefined } });
+  });
+
+  app.get('/api/photos', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const me = await User.findById(userId).lean() as any;
+    const friendIds = (me?.friends || []).map((id: any) => id.toString());
+    const visibleIds = [...friendIds, userId];
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const photos = await DailyPhoto.find({ authorId: { $in: visibleIds }, createdAt: { $gte: since } })
+      .populate('authorId', 'name username profilePicture lastSeen')
+      .sort({ createdAt: -1 });
+    const result = photos.map((p: any) => {
+      const doc = p.toObject();
+      return { ...doc, id: doc._id?.toString(), author: doc.authorId ? { id: doc.authorId._id?.toString(), name: doc.authorId.name, username: doc.authorId.username, profilePicture: doc.authorId.profilePicture, lastSeen: doc.authorId.lastSeen } : undefined };
+    });
+    res.json(result);
+  });
+
+  app.post('/api/photos', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const parsed = api.photos.create.input.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0]?.message || "Invalid data" });
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existing = await DailyPhoto.findOne({ authorId: userId, createdAt: { $gte: since } });
+    if (existing) {
+      const nextAllowed = new Date((existing as any).createdAt.getTime() + 24 * 60 * 60 * 1000);
+      return res.status(429).json({ message: "You can only post one photo per day.", nextAllowed: nextAllowed.toISOString() });
+    }
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const photo = await DailyPhoto.create({ authorId: userId, imageUrl: parsed.data.imageUrl, caption: parsed.data.caption || "", expiresAt });
+    await photo.populate('authorId', 'name username profilePicture lastSeen');
+    const doc = (photo as any).toObject();
+    res.status(201).json({ ...doc, id: doc._id?.toString(), author: doc.authorId ? { id: doc.authorId._id?.toString(), name: doc.authorId.name, username: doc.authorId.username, profilePicture: doc.authorId.profilePicture, lastSeen: doc.authorId.lastSeen } : undefined });
   });
 
   return httpServer;

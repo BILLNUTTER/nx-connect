@@ -150,3 +150,27 @@ export type Message = z.infer<typeof messageSchema>;
 export type Conversation = z.infer<typeof conversationSchema>;
 export type Notification = z.infer<typeof notificationSchema>;
 export type ForgotPasswordRequest = z.infer<typeof forgotPasswordSchema>;
+
+export const dailyPhotoSchema = z.object({
+  id: z.string().optional(),
+  authorId: z.string().optional(),
+  author: z.object({
+    id: z.string(),
+    name: z.string(),
+    username: z.string(),
+    profilePicture: z.string().optional(),
+    lastSeen: z.string().optional(),
+  }).optional(),
+  imageUrl: z.string(),
+  caption: z.string().optional(),
+  expiresAt: z.string().datetime().optional(),
+  createdAt: z.string().datetime().optional(),
+}).passthrough();
+
+export const insertDailyPhotoSchema = z.object({
+  imageUrl: z.string().url("Please provide a valid image URL"),
+  caption: z.string().max(300).optional(),
+});
+
+export type DailyPhoto = z.infer<typeof dailyPhotoSchema>;
+export type InsertDailyPhoto = z.infer<typeof insertDailyPhotoSchema>;

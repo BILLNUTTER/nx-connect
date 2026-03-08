@@ -58,6 +58,14 @@ const forgotPasswordSchema = new mongoose.Schema({
   status: { type: String, enum: ["pending", "resolved"], default: "pending" },
 }, { timestamps: true });
 
+const dailyPhotoSchema = new mongoose.Schema({
+  authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  imageUrl: { type: String, required: true },
+  caption: { type: String, default: "" },
+  expiresAt: { type: Date, default: () => new Date(Date.now() + 24 * 60 * 60 * 1000) },
+}, { timestamps: true });
+dailyPhotoSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export const User = mongoose.models.User || mongoose.model("User", userSchema);
 export const Post = mongoose.models.Post || mongoose.model("Post", postSchema);
 export const Comment = mongoose.models.Comment || mongoose.model("Comment", commentSchema);
@@ -65,3 +73,4 @@ export const Message = mongoose.models.Message || mongoose.model("Message", mess
 export const Conversation = mongoose.models.Conversation || mongoose.model("Conversation", conversationSchema);
 export const Notification = mongoose.models.Notification || mongoose.model("Notification", notificationSchema);
 export const ForgotPassword = mongoose.models.ForgotPassword || mongoose.model("ForgotPassword", forgotPasswordSchema);
+export const DailyPhoto = mongoose.models.DailyPhoto || mongoose.model("DailyPhoto", dailyPhotoSchema);

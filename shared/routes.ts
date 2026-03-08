@@ -4,7 +4,8 @@ import {
   postSchema, insertPostSchema, 
   commentSchema, insertCommentSchema, 
   messageSchema, conversationSchema, 
-  notificationSchema, forgotPasswordSchema 
+  notificationSchema, forgotPasswordSchema,
+  dailyPhotoSchema, insertDailyPhotoSchema
 } from "./schema";
 
 export const errorSchemas = {
@@ -248,6 +249,35 @@ export const api = {
         })
       }
     }
+  },
+  photos: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/photos' as const,
+      responses: {
+        200: z.array(dailyPhotoSchema),
+        401: errorSchemas.unauthorized,
+      }
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/photos' as const,
+      input: insertDailyPhotoSchema,
+      responses: {
+        201: dailyPhotoSchema,
+        400: errorSchemas.validation,
+        401: errorSchemas.unauthorized,
+        429: z.object({ message: z.string(), nextAllowed: z.string().datetime() }),
+      }
+    },
+    myToday: {
+      method: 'GET' as const,
+      path: '/api/photos/my-today' as const,
+      responses: {
+        200: z.object({ hasPosted: z.boolean(), photo: dailyPhotoSchema.optional() }),
+        401: errorSchemas.unauthorized,
+      }
+    },
   }
 };
 

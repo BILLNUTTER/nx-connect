@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
+import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline } from "@/components/ui/shared";
-import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye } from "lucide-react";
-import type { Post } from "@shared/schema";
+import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import type { Post, DailyPhoto } from "@shared/schema";
 
 export default function HomeFeed() {
   const { data: posts, isLoading } = usePosts();
@@ -12,6 +14,16 @@ export default function HomeFeed() {
 
   if (isLoading) return (
     <div className="max-w-xl mx-auto space-y-4 pb-20">
+      <div className="bg-card border border-border rounded-xl p-3 overflow-hidden">
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="shrink-0 flex flex-col items-center gap-1.5">
+              <div className="w-16 h-16 rounded-full bg-secondary animate-pulse" />
+              <div className="h-2.5 w-12 bg-secondary rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
       <CreatePostBox />
       {[1,2,3].map(i => (
         <div key={i} className="bg-card border border-border rounded-xl p-4 animate-pulse">
@@ -31,6 +43,7 @@ export default function HomeFeed() {
 
   return (
     <div className="max-w-xl mx-auto space-y-3 pb-20">
+      <StoriesBar />
       <CreatePostBox />
 
       {posts?.length === 0 ? (
@@ -50,15 +63,270 @@ export default function HomeFeed() {
   );
 }
 
+function StoriesBar() {
+  const { user } = useAuth();
+  const { data: photos } = usePhotos();
+  const { data: myToday } = useMyTodayPhoto();
+  const [viewPhoto, setViewPhoto] = useState<DailyPhoto | null>(null);
+  const [showAddPhoto, setShowAddPhoto] = useState(false);
+
+  return (
+    <>
+      <div className="bg-card border border-border rounded-xl shadow-sm p-3" data-testid="stories-bar">
+        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+          <div className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer" onClick={() => {
+            if (myToday?.hasPosted && myToday.photo) setViewPhoto(myToday.photo);
+            else setShowAddPhoto(true);
+          }} data-testid="button-add-story">
+            <div className="relative">
+              <div className={`w-16 h-16 rounded-full overflow-hidden border-3 ${myToday?.hasPosted ? "border-primary ring-2 ring-primary/30" : "border-dashed border-border"}`} style={{ borderWidth: myToday?.hasPosted ? 3 : 2, borderStyle: myToday?.hasPosted ? "solid" : "dashed" }}>
+                {myToday?.hasPosted && myToday.photo ? (
+                  <img src={myToday.photo.imageUrl} alt="My story" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-secondary flex items-center justify-center">
+                    <Avatar url={user?.profilePicture} name={user?.name || "U"} size="md" />
+                  </div>
+                )}
+              </div>
+              {!myToday?.hasPosted && (
+                <div className="absolute bottom-0 right-0 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-card">
+                  <span className="text-primary-foreground text-xs font-bold leading-none">+</span>
+                </div>
+              )}
+            </div>
+            <span className="text-[11px] font-medium text-foreground truncate max-w-[64px]">
+              {myToday?.hasPosted ? "Your story" : "Add story"}
+            </span>
+          </div>
+
+          {photos?.filter(p => p.author?.id !== user?.id).map(photo => (
+            <div
+              key={photo.id}
+              className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer"
+              onClick={() => setViewPhoto(photo)}
+              data-testid={`button-view-story-${photo.id}`}
+            >
+              <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-primary ring-2 ring-primary/20">
+                <img src={photo.imageUrl} alt={photo.author?.name} className="w-full h-full object-cover" />
+              </div>
+              <span className="text-[11px] font-medium text-foreground truncate max-w-[64px]">
+                {photo.author?.name?.split(" ")[0]}
+              </span>
+            </div>
+          ))}
+
+          {(!photos || photos.filter(p => p.author?.id !== user?.id).length === 0) && !myToday?.hasPosted && (
+            <div className="flex items-center text-xs text-muted-foreground px-2 py-4">
+              No stories yet — be the first!
+            </div>
+          )}
+        </div>
+      </div>
+
+      {viewPhoto && <StoryViewer photo={viewPhoto} onClose={() => setViewPhoto(null)} />}
+      {showAddPhoto && <AddPhotoModal onClose={() => setShowAddPhoto(false)} />}
+    </>
+  );
+}
+
+function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => void }) {
+  const [, setLocation] = useLocation();
+  const expiresAt = photo.expiresAt ? new Date(photo.expiresAt) : null;
+  const hoursLeft = expiresAt ? Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 3600000)) : null;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      data-testid="story-viewer"
+    >
+      <div className="relative max-w-sm w-full">
+        <button
+          onClick={onClose}
+          className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors"
+          data-testid="button-close-story"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+          <img src={photo.imageUrl} alt={photo.caption || "Story"} className="w-full object-cover max-h-[75vh]" />
+
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
+                className="hover:opacity-80 transition-opacity"
+              >
+                <Avatar url={photo.author?.profilePicture} name={photo.author?.name || "U"} size="sm" online={isOnline((photo.author as any)?.lastSeen)} />
+              </button>
+              <div>
+                <button
+                  onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
+                  className="text-white font-semibold text-sm hover:underline block"
+                >
+                  {photo.author?.name}
+                </button>
+                {hoursLeft !== null && (
+                  <span className="text-white/60 text-xs">{hoursLeft}h left</span>
+                )}
+              </div>
+            </div>
+            {photo.caption && (
+              <p className="text-white text-sm leading-relaxed">{photo.caption}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddPhotoModal({ onClose }: { onClose: () => void }) {
+  const createPhoto = useCreatePhoto();
+  const { toast } = useToast();
+  const [imageUrl, setImageUrl] = useState("");
+  const [caption, setCaption] = useState("");
+  const [preview, setPreview] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!imageUrl.trim()) return;
+    try {
+      await createPhoto.mutateAsync({ imageUrl: imageUrl.trim(), caption: caption.trim() || undefined });
+      toast({ title: "Story posted!", description: "It will disappear in 24 hours." });
+      onClose();
+    } catch (err: any) {
+      const msg = err?.message || "Failed to post story";
+      if (msg.includes("once") || msg.includes("day")) {
+        toast({ title: "Already posted today", description: "You can post one photo story per day.", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: msg, variant: "destructive" });
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      data-testid="add-photo-modal"
+    >
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
+          <div className="flex items-center gap-2">
+            <Camera className="w-5 h-5 text-primary" />
+            <h2 className="font-bold text-lg">Post daily photo</h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="button-close-add-photo">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Image URL</label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => { setImageUrl(e.target.value); setPreview(false); }}
+                onBlur={() => imageUrl.trim() && setPreview(true)}
+                placeholder="https://example.com/photo.jpg"
+                className="flex-1 bg-secondary/60 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary transition-colors"
+                data-testid="input-photo-url"
+              />
+              <button
+                onClick={() => imageUrl.trim() && setPreview(p => !p)}
+                className="px-3 py-2.5 bg-secondary hover:bg-secondary/80 rounded-xl transition-colors text-muted-foreground"
+                data-testid="button-preview-photo"
+                title="Preview"
+              >
+                <Image className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {preview && imageUrl && (
+            <div className="rounded-xl overflow-hidden border border-border bg-secondary/30">
+              <img
+                src={imageUrl}
+                alt="Preview"
+                className="w-full max-h-56 object-cover"
+                onError={() => setPreview(false)}
+                data-testid="img-photo-preview"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-1.5">Caption <span className="text-muted-foreground font-normal">(optional)</span></label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Say something about your photo..."
+              maxLength={300}
+              rows={2}
+              className="w-full bg-secondary/60 border border-border rounded-xl px-3 py-2.5 text-sm outline-none focus:border-primary transition-colors resize-none"
+              data-testid="input-photo-caption"
+            />
+            <div className="text-right text-xs text-muted-foreground mt-1">{caption.length}/300</div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/40 rounded-xl px-3 py-2.5">
+            <Camera className="w-3.5 h-3.5 shrink-0" />
+            <span>One photo per day · disappears after 24 hours</span>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5">
+          <Button
+            onClick={handleSubmit}
+            disabled={!imageUrl.trim() || createPhoto.isPending}
+            className="w-full"
+            data-testid="button-submit-photo"
+          >
+            {createPhoto.isPending ? "Posting..." : "Post story"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CreatePostBox() {
   const [content, setContent] = useState("");
+  const [composing, setComposing] = useState(false);
   const createPost = useCreatePost();
   const { user } = useAuth();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const openCompose = () => {
+    setComposing(true);
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  };
 
   const handleSubmit = async () => {
     if (!content.trim()) return;
     await createPost.mutateAsync(content);
     setContent("");
+    setComposing(false);
+  };
+
+  const autoResize = () => {
+    const el = textareaRef.current;
+    if (el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
   };
 
   return (
@@ -66,39 +334,77 @@ function CreatePostBox() {
       <div className="p-4">
         <div className="flex gap-3 items-start">
           <Avatar url={user?.profilePicture} name={user?.name || "U"} online />
+          {!composing ? (
+            <button
+              onClick={openCompose}
+              className="flex-1 bg-secondary/60 hover:bg-secondary rounded-full px-4 py-2.5 text-left text-muted-foreground transition-colors cursor-text text-sm"
+              data-testid="input-create-post-trigger"
+            >
+              What's on your mind, {user?.name?.split(" ")[0]}?
+            </button>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => { setContent(e.target.value); autoResize(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSubmit(); }}
+              placeholder={`What's on your mind, ${user?.name?.split(" ")[0] || "you"}?`}
+              className="flex-1 bg-transparent resize-none outline-none text-base placeholder:text-muted-foreground min-h-[60px] leading-relaxed"
+              data-testid="input-create-post"
+              rows={2}
+            />
+          )}
+        </div>
+      </div>
+
+      {composing && (
+        <div className="border-t border-border/50 px-4 py-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-1 text-muted-foreground text-sm font-medium">
+            <Globe className="w-4 h-4 text-primary mr-1" />
+            Public
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setContent(""); setComposing(false); }}
+              data-testid="button-cancel-post"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!content.trim() || createPost.isPending}
+              data-testid="button-share-post"
+              size="sm"
+              className="px-5"
+            >
+              {createPost.isPending ? "Posting..." : "Post"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!composing && (
+        <div className="border-t border-border/50 px-4 py-2 flex items-center gap-1">
           <button
-            onClick={() => {}}
-            className="flex-1 bg-secondary/60 hover:bg-secondary rounded-full px-4 py-2.5 text-left text-muted-foreground transition-colors cursor-text"
-            data-testid="input-create-post-trigger"
+            onClick={openCompose}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-secondary/60 transition-colors"
+            data-testid="button-photo-post-shortcut"
           >
-            What's on your mind, {user?.name?.split(" ")[0]}?
+            <Camera className="w-4 h-4 text-primary" />
+            Photo
+          </button>
+          <button
+            onClick={openCompose}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-secondary/60 transition-colors"
+            data-testid="button-text-post-shortcut"
+          >
+            <MessageCircle className="w-4 h-4 text-green-500" />
+            Feeling
           </button>
         </div>
-
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder={`What's on your mind, ${user?.name?.split(" ")[0] || "you"}?`}
-          className={`w-full bg-transparent resize-none outline-none text-lg placeholder:text-muted-foreground mt-3 transition-all ${content ? "min-h-[80px]" : "h-0 mt-0 overflow-hidden"}`}
-          data-testid="input-create-post"
-        />
-      </div>
-
-      <div className="border-t border-border/50 px-4 py-2.5 flex items-center justify-between">
-        <div className="flex items-center gap-1 text-muted-foreground text-sm font-medium">
-          <Globe className="w-4 h-4 text-primary mr-1" />
-          Public
-        </div>
-        <Button
-          onClick={handleSubmit}
-          disabled={!content.trim() || createPost.isPending}
-          data-testid="button-share-post"
-          size="sm"
-          className="px-5"
-        >
-          {createPost.isPending ? "Posting..." : "Post"}
-        </Button>
-      </div>
+      )}
     </div>
   );
 }
