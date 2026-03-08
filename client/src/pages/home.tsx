@@ -188,7 +188,7 @@ function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => voi
   );
 }
 
-function compressImage(file: File, maxWidth = 1080, quality = 0.82): Promise<string> {
+function compressImage(file: File, maxWidth = 900, quality = 0.75): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
