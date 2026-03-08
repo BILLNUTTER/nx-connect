@@ -28,6 +28,17 @@ export async function registerRoutes(
       const user = new User({ ...input, password: hashedPassword });
       await user.save();
 
+      // Send notification to all users about new follow suggestions
+      const allUsers = await User.find({ _id: { $ne: user._id } });
+      if (allUsers.length > 0) {
+        const notifications = allUsers.map(u => ({
+          recipientId: u._id,
+          type: 'system',
+          content: `${input.name} just joined! New follow suggestion available.`
+        }));
+        await Notification.insertMany(notifications);
+      }
+
       const token = generateToken(user.id);
       res.status(201).json({ token, user: user.toJSON() });
     } catch (error) {
@@ -209,7 +220,7 @@ export async function registerRoutes(
     if (!me) return res.status(401).json({ message: "Unauthorized" });
 
     const excludeIds = [userId, ...me.friends, ...me.friendRequests, ...me.sentRequests];
-    const users = await User.find({ _id: { $nin: excludeIds }, isAdmin: false })
+    const users = await User.find({ _id: { $nin: excludeIds }, isAdmin: false, name: { $exists: true, $ne: "" } })
       .select('name username profilePicture _id')
       .limit(20);
       

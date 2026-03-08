@@ -87,11 +87,12 @@ function RequestsTab() {
 }
 
 function UserCard({ user, children }: { user: User, children: React.ReactNode }) {
+  const displayName = user.name || user.fullName || user.username || "Unknown";
   return (
     <Card className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left hover:border-primary/30 transition-colors">
-      <Avatar url={user.profilePicture} name={user.name} size="lg" />
+      <Avatar url={user.profilePicture} name={displayName} size="lg" />
       <div className="flex-1">
-        <h3 className="font-bold text-lg">{user.name}</h3>
+        <h3 className="font-bold text-lg">{displayName}</h3>
         <p className="text-muted-foreground text-sm">@{user.username}</p>
       </div>
       <div>{children}</div>
