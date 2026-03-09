@@ -485,12 +485,15 @@ export async function registerRoutes(
     const userId = (req as any).userId;
     const convos = await Conversation.find({ participants: userId })
       .populate('participants', 'name username profilePicture lastSeen')
+      .populate('adminId', 'name username id')
       .sort({ lastMessageAt: -1, updatedAt: -1 });
     
     const formatted = convos.map(c => {
       const doc = c.toJSON() as any;
-      const other = doc.participants.find((p: any) => p.id !== userId);
-      doc.otherUser = other;
+      if (!doc.isGroup) {
+        const other = doc.participants.find((p: any) => p.id !== userId);
+        doc.otherUser = other;
+      }
       doc.unreadCount = (doc.unreadBy || []).some((uid: any) => uid.toString() === userId.toString()) ? 1 : 0;
       return doc;
     });
@@ -516,12 +519,22 @@ export async function registerRoutes(
 
   app.get(api.chats.messages.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
-    const messages = await Message.find({ conversationId: req.params.conversationId }).sort({ createdAt: 1 });
+    const messages = await Message.find({ conversationId: req.params.conversationId })
+      .populate('senderId', 'name username profilePicture')
+      .sort({ createdAt: 1 });
     // Mark conversation as read for this user
     await Conversation.findByIdAndUpdate(req.params.conversationId, {
       $pull: { unreadBy: userId }
     });
-    res.status(200).json(messages.map(m => m.toJSON()));
+    const formatted = messages.map(m => {
+      const doc = m.toJSON() as any;
+      if (doc.senderId && typeof doc.senderId === 'object') {
+        doc.sender = doc.senderId;
+        doc.senderId = doc.senderId.id || doc.senderId._id;
+      }
+      return doc;
+    });
+    res.status(200).json(formatted);
   });
 
   app.post(api.chats.sendMessage.path, authenticate, async (req: Request, res: Response) => {
@@ -546,6 +559,90 @@ export async function registerRoutes(
       await convo.save();
     }
     res.status(201).json(msg.toJSON());
+  });
+
+  // Groups
+  app.post('/api/groups', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { groupName, groupPhoto, memberIds } = req.body;
+    if (!groupName?.trim()) return res.status(400).json({ message: "Group name is required" });
+    const members: string[] = Array.isArray(memberIds) ? memberIds : [];
+    const allParticipants = [userId, ...members.filter((id: string) => id !== userId)];
+    const inviteToken = crypto.randomUUID();
+    const group = new Conversation({
+      isGroup: true,
+      groupName: groupName.trim(),
+      groupPhoto: groupPhoto || '',
+      adminId: userId,
+      participants: allParticipants,
+      inviteToken,
+      lastMessage: `Group "${groupName.trim()}" created`,
+      lastMessageAt: new Date(),
+    });
+    await group.save();
+    const systemMsg = new Message({ conversationId: group._id, senderId: userId, content: `Group "${groupName.trim()}" was created.`, isSystem: true });
+    await systemMsg.save();
+    const populated = await Conversation.findById(group._id).populate('participants', 'name username profilePicture lastSeen').populate('adminId', 'name username');
+    res.status(201).json(populated!.toJSON());
+  });
+
+  app.put('/api/groups/:id', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const group = await Conversation.findOne({ _id: req.params.id, isGroup: true });
+    if (!group) return res.status(404).json({ message: "Group not found" });
+    if ((group.adminId as any)?.toString() !== userId) return res.status(403).json({ message: "Only the group admin can edit settings" });
+    const { groupName, groupPhoto } = req.body;
+    if (groupName?.trim()) group.groupName = groupName.trim();
+    if (groupPhoto !== undefined) group.groupPhoto = groupPhoto;
+    await group.save();
+    const populated = await Conversation.findById(group._id).populate('participants', 'name username profilePicture lastSeen').populate('adminId', 'name username');
+    res.status(200).json(populated!.toJSON());
+  });
+
+  app.delete('/api/groups/:id/members/:memberId', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const group = await Conversation.findOne({ _id: req.params.id, isGroup: true });
+    if (!group) return res.status(404).json({ message: "Group not found" });
+    if ((group.adminId as any)?.toString() !== userId) return res.status(403).json({ message: "Only the group admin can remove members" });
+    const memberId = req.params.memberId;
+    if (memberId === userId) return res.status(400).json({ message: "Admin cannot remove themselves" });
+    group.participants = (group.participants as any[]).filter((p: any) => p.toString() !== memberId);
+    await group.save();
+    const sysMsg = new Message({ conversationId: group._id, senderId: userId, content: `A member was removed from the group.`, isSystem: true });
+    await sysMsg.save();
+    res.status(200).json({ message: "Member removed" });
+  });
+
+  app.post('/api/groups/leave/:id', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const group = await Conversation.findOne({ _id: req.params.id, isGroup: true });
+    if (!group) return res.status(404).json({ message: "Group not found" });
+    if ((group.adminId as any)?.toString() === userId) return res.status(400).json({ message: "Admin cannot leave — transfer admin or delete the group" });
+    group.participants = (group.participants as any[]).filter((p: any) => p.toString() !== userId);
+    await group.save();
+    res.status(200).json({ message: "Left group" });
+  });
+
+  app.get('/api/groups/join/:token', async (req: Request, res: Response) => {
+    const group = await Conversation.findOne({ inviteToken: req.params.token, isGroup: true })
+      .populate('participants', 'name username profilePicture lastSeen')
+      .populate('adminId', 'name username');
+    if (!group) return res.status(404).json({ message: "Invalid or expired invite link" });
+    res.status(200).json(group.toJSON());
+  });
+
+  app.post('/api/groups/join/:token', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const group = await Conversation.findOne({ inviteToken: req.params.token, isGroup: true });
+    if (!group) return res.status(404).json({ message: "Invalid or expired invite link" });
+    const alreadyMember = (group.participants as any[]).some((p: any) => p.toString() === userId);
+    if (alreadyMember) return res.status(200).json(group.toJSON());
+    group.participants.push(userId as any);
+    await group.save();
+    const sysMsg = new Message({ conversationId: group._id, senderId: userId, content: `A new member joined via invite link.`, isSystem: true });
+    await sysMsg.save();
+    const populated = await Conversation.findById(group._id).populate('participants', 'name username profilePicture lastSeen').populate('adminId', 'name username');
+    res.status(200).json(populated!.toJSON());
   });
 
   // Notifications

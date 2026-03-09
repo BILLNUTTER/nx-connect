@@ -46,6 +46,11 @@ const conversationSchema = new mongoose.Schema({
   lastMessageAt: { type: Date, default: null },
   unreadBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   isAdminChat: { type: Boolean, default: false },
+  isGroup: { type: Boolean, default: false },
+  groupName: { type: String, default: '' },
+  groupPhoto: { type: String, default: '' },
+  adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  inviteToken: { type: String, default: null, unique: true, sparse: true },
 }, { timestamps: true });
 
 const notificationSchema = new mongoose.Schema({
