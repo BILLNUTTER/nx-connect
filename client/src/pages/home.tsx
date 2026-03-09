@@ -660,28 +660,36 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
       )}
       <div className="p-4 pb-3">
         <div className="flex items-center gap-3 mb-3">
-          <button
-            onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-            className="hover:opacity-80 transition-opacity shrink-0"
-            data-testid={`button-author-avatar-${post.id}`}
-          >
-            {isAdminPost ? (
+          {isAdminPost ? (
+            <div className="shrink-0 cursor-default" data-testid={`button-author-avatar-${post.id}`}>
               <div className="ring-2 ring-amber-400 dark:ring-amber-500 rounded-full p-0.5">
                 <Avatar url={post.author?.profilePicture} name="NX" online={false} />
               </div>
-            ) : (
+            </div>
+          ) : (
+            <button
+              onClick={() => authorId && setLocation(`/profile/${authorId}`)}
+              className="hover:opacity-80 transition-opacity shrink-0"
+              data-testid={`button-author-avatar-${post.id}`}
+            >
               <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
-            )}
-          </button>
+            </button>
+          )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-                className={`font-semibold hover:underline text-left text-sm ${isAdminPost ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}
-                data-testid={`button-author-name-${post.id}`}
-              >
-                {isAdminPost ? "NX-Connect" : post.author?.name}
-              </button>
+              {isAdminPost ? (
+                <span className={`font-semibold text-sm text-amber-700 dark:text-amber-300`} data-testid={`button-author-name-${post.id}`}>
+                  NX-Connect
+                </span>
+              ) : (
+                <button
+                  onClick={() => authorId && setLocation(`/profile/${authorId}`)}
+                  className="font-semibold hover:underline text-left text-sm text-foreground"
+                  data-testid={`button-author-name-${post.id}`}
+                >
+                  {post.author?.name}
+                </button>
+              )}
               {isAdminPost && (
                 <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
                   ✦ OFFICIAL

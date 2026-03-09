@@ -3,8 +3,8 @@ import { useConversations, useMessages, useSendMessage } from "@/hooks/use-chats
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
-import { Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft } from "lucide-react";
+import { Avatar, isOnline, LinkedText } from "@/components/ui/shared";
+import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -388,8 +388,17 @@ function ActiveChat({
                     linkClassName={isMe ? "text-white underline underline-offset-2 hover:no-underline break-all opacity-90" : "text-primary underline underline-offset-2 hover:no-underline break-all"}
                   />
                 </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5 mx-1">
-                  <TimeAgo date={msg.createdAt} />
+                <div className={`flex items-center gap-1 mt-0.5 mx-1 ${isMe ? "flex-row-reverse" : ""}`}>
+                  <span className="text-[10px] text-muted-foreground">
+                    {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ""}
+                  </span>
+                  {isMe && !isGroup && (
+                    msg.readBy?.includes(otherUser?.id || otherUser?._id)
+                      ? <CheckCheck className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      : otherUser?.lastSeen && new Date(otherUser.lastSeen) > new Date(msg.createdAt)
+                        ? <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                        : <Check className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                  )}
                 </div>
               </div>
             </div>

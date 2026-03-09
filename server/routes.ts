@@ -486,7 +486,7 @@ export async function registerRoutes(
   app.get(api.users.posts.path, authenticate, async (req: Request, res: Response) => {
     const viewerId = (req as any).userId;
     const isOwner = viewerId === req.params.id;
-    const query: any = { authorId: req.params.id };
+    const query: any = { authorId: req.params.id, isAdminPost: { $ne: true } };
     if (!isOwner) query.$or = [{ hidden: false }, { hidden: { $exists: false } }];
     const posts = await Post.find(query)
       .populate('authorId', 'name username profilePicture lastSeen')
@@ -542,10 +542,14 @@ export async function registerRoutes(
       .populate('senderId', 'name username profilePicture')
       .populate({ path: 'replyTo', populate: { path: 'senderId', select: 'name username' } })
       .sort({ createdAt: 1 });
-    // Mark conversation as read for this user
+    // Mark conversation as read for this user AND add userId to readBy on all messages not sent by them
     await Conversation.findByIdAndUpdate(req.params.conversationId, {
       $pull: { unreadBy: userId }
     });
+    await Message.updateMany(
+      { conversationId: req.params.conversationId, senderId: { $ne: userId }, readBy: { $ne: userId } },
+      { $addToSet: { readBy: userId } }
+    );
     const formatted = messages.map(m => {
       const doc = m.toJSON() as any;
       if (doc.senderId && typeof doc.senderId === 'object') {
@@ -558,6 +562,8 @@ export async function registerRoutes(
           doc.replyTo.senderId = doc.replyTo.senderId.id || doc.replyTo.senderId._id;
         }
       }
+      // Normalize readBy to strings
+      doc.readBy = (doc.readBy || []).map((id: any) => id?.toString ? id.toString() : id);
       return doc;
     });
     res.status(200).json(formatted);

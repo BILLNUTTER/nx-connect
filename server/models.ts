@@ -39,6 +39,7 @@ const messageSchema = new mongoose.Schema({
   content: { type: String, required: true },
   isSystem: { type: Boolean, default: false },
   replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
+  readBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
 
 const conversationSchema = new mongoose.Schema({
