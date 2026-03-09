@@ -259,6 +259,17 @@ export const api = {
       method: 'DELETE' as const,
       path: '/api/admin/posts/:id' as const,
       responses: { 200: z.object({ message: z.string() }) }
+    },
+    getProfile: {
+      method: 'GET' as const,
+      path: '/api/admin/profile' as const,
+      responses: { 200: userSchema }
+    },
+    updateProfile: {
+      method: 'PUT' as const,
+      path: '/api/admin/profile' as const,
+      input: z.object({ profilePicture: z.string().optional(), name: z.string().optional() }),
+      responses: { 200: userSchema }
     }
   },
   search: {

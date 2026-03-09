@@ -649,7 +649,15 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
   }, []);
 
   return (
-    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden" data-testid={`post-card-${post.id}`} onMouseEnter={() => prefetchPost(post.id!)}>
+    <div
+      className={`rounded-xl shadow-sm overflow-hidden ${isAdminPost ? 'border border-amber-300/80 dark:border-amber-500/50 shadow-amber-100/60 dark:shadow-amber-900/30' : 'bg-card border border-border'}`}
+      style={isAdminPost ? { background: 'linear-gradient(160deg, rgba(251,191,36,0.10) 0%, var(--card) 60%)' } : undefined}
+      data-testid={`post-card-${post.id}`}
+      onMouseEnter={() => prefetchPost(post.id!)}
+    >
+      {isAdminPost && (
+        <div className="h-[3px] w-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500" />
+      )}
       <div className="p-4 pb-3">
         <div className="flex items-center gap-3 mb-3">
           <button
@@ -657,19 +665,27 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
             className="hover:opacity-80 transition-opacity shrink-0"
             data-testid={`button-author-avatar-${post.id}`}
           >
-            <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
+            {isAdminPost ? (
+              <div className="ring-2 ring-amber-400 dark:ring-amber-500 rounded-full p-0.5">
+                <Avatar url={post.author?.profilePicture} name="NX" online={false} />
+              </div>
+            ) : (
+              <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
+            )}
           </button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-                className="font-semibold text-foreground hover:underline text-left text-sm"
+                className={`font-semibold hover:underline text-left text-sm ${isAdminPost ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}
                 data-testid={`button-author-name-${post.id}`}
               >
                 {isAdminPost ? "NX-Connect" : post.author?.name}
               </button>
               {isAdminPost && (
-                <span className="px-2 py-0.5 text-[10px] bg-primary/10 text-primary rounded-full font-bold border border-primary/20">OFFICIAL</span>
+                <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
+                  ✦ OFFICIAL
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">

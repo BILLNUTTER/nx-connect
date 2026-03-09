@@ -32,6 +32,30 @@ export function useAdminPosts() {
   });
 }
 
+export function useAdminProfile() {
+  const queryClient = useQueryClient();
+  const query = useQuery({
+    queryKey: [api.admin.getProfile.path],
+    queryFn: async () => {
+      const data = await apiFetch(api.admin.getProfile.path);
+      return parseWithLogging(api.admin.getProfile.responses[200], data, "admin.profile");
+    },
+  });
+
+  const updateProfile = useMutation({
+    mutationFn: async (updates: { profilePicture?: string; name?: string }) => {
+      const data = await apiFetch(api.admin.updateProfile.path, {
+        method: "PUT",
+        body: JSON.stringify(updates),
+      });
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.admin.getProfile.path] }),
+  });
+
+  return { ...query, updateProfile };
+}
+
 export function useAdminPasswordRequests() {
   return useQuery({
     queryKey: [api.admin.passwordRequests.path],

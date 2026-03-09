@@ -6,9 +6,9 @@ export function isOnline(lastSeen?: string | Date | null): boolean {
   return Date.now() - new Date(lastSeen).getTime() < 5 * 60 * 1000;
 }
 
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function Card({ children, className = "", style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   return (
-    <div className={`bg-card rounded-3xl p-5 shadow-lg shadow-black/5 border border-border/50 ${className}`}>
+    <div className={`bg-card rounded-3xl p-5 shadow-lg shadow-black/5 border border-border/50 ${className}`} style={style}>
       {children}
     </div>
   );

@@ -1,12 +1,101 @@
 import { useState } from "react";
-import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions, useAdminPosts } from "@/hooks/use-admin";
+import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions, useAdminPosts, useAdminProfile } from "@/hooks/use-admin";
 import { setAdminKey as persistAdminKey } from "@/lib/api";
 import { useUserPosts } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Input, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock } from "lucide-react";
+import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Post } from "@shared/schema";
+
+function AdminProfileSection() {
+  const { data: adminUser, isLoading, updateProfile } = useAdminProfile();
+  const { toast } = useToast();
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  const handleSave = async () => {
+    const updates: { profilePicture?: string; name?: string } = {};
+    if (photoUrl.trim()) updates.profilePicture = photoUrl.trim();
+    if (displayName.trim()) updates.name = displayName.trim();
+    if (!Object.keys(updates).length) return;
+    await updateProfile.mutateAsync(updates);
+    toast({ title: "Admin profile updated!" });
+    setPhotoUrl("");
+    setDisplayName("");
+    setEditing(false);
+  };
+
+  return (
+    <Card className="p-5 border border-amber-300/60 dark:border-amber-500/30" style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, var(--card) 70%)' }}>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-bold text-base flex items-center gap-2">
+          <Camera className="w-4 h-4 text-amber-500" /> NX-Connect Official Profile
+        </h2>
+        <button
+          onClick={() => setEditing(e => !e)}
+          className="text-xs text-amber-600 dark:text-amber-400 hover:underline font-medium"
+          data-testid="button-edit-admin-profile"
+        >
+          {editing ? "Cancel" : "Edit"}
+        </button>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="ring-2 ring-amber-400 dark:ring-amber-500 rounded-full p-0.5 shrink-0">
+          {isLoading ? (
+            <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/40 animate-pulse" />
+          ) : (
+            <Avatar url={adminUser?.profilePicture} name="NX" size="lg" online={false} />
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="font-bold text-amber-700 dark:text-amber-300">{adminUser?.name || "NX-Connect"}</div>
+          <div className="text-xs text-muted-foreground">@{adminUser?.username || "admin"}</div>
+          <span className="inline-flex items-center gap-0.5 mt-1 px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600">
+            ✦ OFFICIAL
+          </span>
+        </div>
+      </div>
+      {editing && (
+        <div className="mt-4 space-y-3 border-t border-amber-200/50 dark:border-amber-700/30 pt-4">
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1 font-medium">Profile Photo URL</label>
+            <Input
+              placeholder="https://example.com/photo.jpg"
+              value={photoUrl}
+              onChange={e => setPhotoUrl(e.target.value)}
+              data-testid="input-admin-profile-photo"
+            />
+            {photoUrl && (
+              <div className="mt-2 flex items-center gap-2">
+                <img src={photoUrl} alt="preview" className="w-10 h-10 rounded-full object-cover border border-amber-300" onError={e => (e.currentTarget.style.display = 'none')} />
+                <span className="text-xs text-muted-foreground">Preview</span>
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-xs text-muted-foreground mb-1 font-medium">Display Name</label>
+            <Input
+              placeholder={adminUser?.name || "NX-Connect"}
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              data-testid="input-admin-display-name"
+            />
+          </div>
+          <Button
+            className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+            onClick={handleSave}
+            disabled={updateProfile.isPending || (!photoUrl.trim() && !displayName.trim())}
+            data-testid="button-save-admin-profile"
+          >
+            {updateProfile.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -81,6 +170,7 @@ export default function AdminDashboard() {
 
       {activeTab === "dashboard" ? (
         <>
+          <AdminProfileSection />
           <AdminStats />
           <div className="grid lg:grid-cols-2 gap-8">
             <div className="space-y-8">

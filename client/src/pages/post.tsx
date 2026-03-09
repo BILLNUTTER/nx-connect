@@ -55,6 +55,7 @@ export default function PostPage() {
   const isFriend = !isOwnPost && authorId && friendIds.has(authorId);
   const hasLiked = post.likes.includes(user?.id || "");
   const isHidden = (post as any).hidden;
+  const isAdminPost = !!(post as any).isAdminPost;
 
   const handleSend = async () => {
     if (!content.trim()) return;
@@ -78,7 +79,11 @@ export default function PostPage() {
         <ArrowLeft className="w-5 h-5" /> Back
       </button>
 
-      <Card>
+      <Card
+        className={isAdminPost ? 'border border-amber-300/80 dark:border-amber-500/50 overflow-hidden' : ''}
+        style={isAdminPost ? { background: 'linear-gradient(160deg, rgba(251,191,36,0.10) 0%, var(--card) 60%)' } : undefined}
+      >
+        {isAdminPost && <div className="h-[3px] bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 -mx-5 -mt-5 mb-5" />}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <button
@@ -86,18 +91,31 @@ export default function PostPage() {
               className="hover:opacity-80 transition-opacity"
               data-testid="button-post-author-avatar"
             >
-              <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
+              {isAdminPost ? (
+                <div className="ring-2 ring-amber-400 dark:ring-amber-500 rounded-full p-0.5">
+                  <Avatar url={post.author?.profilePicture} name="NX" online={false} />
+                </div>
+              ) : (
+                <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} online={isOnline((post.author as any)?.lastSeen)} />
+              )}
             </button>
             <div>
-              <button
-                onClick={() => authorId && setLocation(`/profile/${authorId}`)}
-                className="font-bold text-foreground hover:underline text-left"
-                data-testid="button-post-author-name"
-              >
-                {post.author?.name}
-              </button>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => authorId && setLocation(`/profile/${authorId}`)}
+                  className={`font-bold hover:underline text-left ${isAdminPost ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'}`}
+                  data-testid="button-post-author-name"
+                >
+                  {isAdminPost ? "NX-Connect" : post.author?.name}
+                </button>
+                {isAdminPost && (
+                  <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
+                    ✦ OFFICIAL
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1">
-                @{post.author?.username} · <TimeAgo date={post.createdAt!} />
+                @{isAdminPost ? "nx-connect" : post.author?.username} · <TimeAgo date={post.createdAt!} />
                 {isHidden && <span className="text-amber-500 font-semibold ml-1">· Hidden</span>}
               </div>
             </div>

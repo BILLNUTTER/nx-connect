@@ -849,6 +849,22 @@ export async function registerRoutes(
     res.status(200).json({ message: "Post deleted" });
   });
 
+  app.get(api.admin.getProfile.path, adminOnly, async (_req: Request, res: Response) => {
+    const admin = await User.findOne({ isAdmin: true }).lean() as any;
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    res.json({ ...admin, id: admin._id?.toString() });
+  });
+
+  app.put(api.admin.updateProfile.path, adminOnly, async (req: Request, res: Response) => {
+    const { profilePicture, name } = req.body;
+    const updates: any = {};
+    if (profilePicture !== undefined) updates.profilePicture = profilePicture;
+    if (name !== undefined) updates.name = name;
+    const admin = await User.findOneAndUpdate({ isAdmin: true }, { $set: updates }, { new: true }).lean() as any;
+    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    res.json({ ...admin, id: admin._id?.toString() });
+  });
+
   // Daily photos (stories)
   app.get('/api/photos/my-today', authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
