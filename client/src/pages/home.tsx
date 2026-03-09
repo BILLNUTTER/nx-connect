@@ -4,7 +4,7 @@ import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePr
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send } from "lucide-react";
+import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post, DailyPhoto } from "@shared/schema";
 
@@ -751,14 +751,31 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
         </button>
 
         {(post as any).imageUrl && (
-          <div className="relative mt-2 rounded-xl overflow-hidden border border-border/50 cursor-pointer" onClick={() => setLocation(`/post/${post.id}`)} data-testid={`img-post-${post.id}`}>
-            <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[420px]" />
+          <div className="relative mt-2 rounded-xl overflow-hidden border border-border/50 group/img" data-testid={`img-post-${post.id}`}>
+            <img
+              src={(post as any).imageUrl}
+              alt="Post"
+              className="w-full object-cover max-h-[420px] cursor-pointer"
+              onClick={() => setLocation(`/post/${post.id}`)}
+            />
             {(post as any).expiresAt && (
               <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
                 <Camera className="w-2.5 h-2.5" />
                 <span>Expires in <TimeAgo date={(post as any).expiresAt} /></span>
               </div>
             )}
+            <a
+              href={(post as any).imageUrl}
+              download={`nx-photo-${post.id}.jpg`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 opacity-0 group-hover/img:opacity-100 transition-opacity"
+              title="Save photo"
+              data-testid={`button-save-photo-${post.id}`}
+            >
+              <Download className="w-3.5 h-3.5" />
+            </a>
           </div>
         )}
 

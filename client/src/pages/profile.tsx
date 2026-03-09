@@ -4,8 +4,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { useUserPosts } from "@/hooks/use-users";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import { Card, Button, Input, Avatar, TimeAgo, LinkedText } from "@/components/ui/shared";
-import { Camera, LogOut, Pencil, X, User, AtSign, Phone, Mail, Users, Eye, EyeOff, Trash2, ThumbsUp, MessageCircle, Globe, ImagePlus } from "lucide-react";
+import { Camera, LogOut, Pencil, X, User, AtSign, Phone, Mail, Users, Eye, EyeOff, Trash2, ThumbsUp, MessageCircle, Globe, ImagePlus, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/api";
 import type { Post } from "@shared/schema";
 
 async function compressImage(file: File, maxWidth = 900, quality = 0.78): Promise<string> {
@@ -335,6 +336,8 @@ export default function ProfilePage() {
         )}
       </div>
 
+      <ChangePasswordSection />
+
       <Card className="border-destructive/20">
         <h3 className="text-base font-bold mb-1 text-destructive">Sign Out</h3>
         <p className="text-sm text-muted-foreground mb-4">You'll need to log back in to access your account.</p>
@@ -343,6 +346,97 @@ export default function ProfilePage() {
         </Button>
       </Card>
     </div>
+  );
+}
+
+function ChangePasswordSection() {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ title: "All fields required", variant: "destructive" }); return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords don't match", variant: "destructive" }); return;
+    }
+    if (newPassword.length < 6) {
+      toast({ title: "New password must be at least 6 characters", variant: "destructive" }); return;
+    }
+    setSaving(true);
+    try {
+      await apiFetch("/api/auth/change-password", {
+        method: "PUT",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      setOpen(false);
+      toast({ title: "Password changed!", description: "Your password has been updated." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not change password", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between"
+        data-testid="button-toggle-change-password"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+            <Lock className="w-4 h-4 text-primary" />
+          </div>
+          <span className="font-semibold text-sm">Change Password</span>
+        </div>
+        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="text-xs text-muted-foreground font-medium mb-1 block">Current Password</label>
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              placeholder="Enter current password"
+              data-testid="input-current-password"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium mb-1 block">New Password</label>
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="Enter new password (min 6 chars)"
+              data-testid="input-new-password"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground font-medium mb-1 block">Confirm New Password</label>
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={e => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+              onKeyDown={e => e.key === "Enter" && handleSave()}
+              data-testid="input-confirm-password"
+            />
+          </div>
+          <Button onClick={handleSave} disabled={saving} className="w-full" data-testid="button-save-password">
+            {saving ? "Saving..." : "Update Password"}
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
 

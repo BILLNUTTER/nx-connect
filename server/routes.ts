@@ -139,6 +139,20 @@ export async function registerRoutes(
     res.status(200).json(user.toJSON());
   });
 
+  app.put('/api/auth/change-password', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ message: "Both current and new password are required" });
+    if (newPassword.length < 6) return res.status(400).json({ message: "New password must be at least 6 characters" });
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const valid = await bcrypt.compare(currentPassword, user.password as string);
+    if (!valid) return res.status(401).json({ message: "Current password is incorrect" });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(userId, { password: hashed });
+    res.status(200).json({ message: "Password changed successfully" });
+  });
+
   // Post Routes
   app.get(api.posts.list.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
@@ -148,7 +162,7 @@ export async function registerRoutes(
     const now = new Date();
     const posts = await Post.find({
       $and: [
-        { $or: [{ hidden: false }, { hidden: { $exists: false } }, { authorId: userId }, { isAdminPost: true }] },
+        { $or: [{ hidden: false }, { hidden: { $exists: false } }, { isAdminPost: true }] },
         { $or: [{ expiresAt: null }, { expiresAt: { $exists: false } }, { expiresAt: { $gt: now } }] }
       ]
     }).populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 });

@@ -5,7 +5,7 @@ import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight, Download } from "lucide-react";
 
 export default function PostPage() {
   const [location, setLocation] = useLocation();
@@ -177,13 +177,24 @@ export default function PostPage() {
           <p className="text-xl leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content"><LinkedText text={post.content} /></p>
         )}
         {(post as any).imageUrl && (
-          <div className="relative mb-6 rounded-2xl overflow-hidden border border-border/50">
+          <div className="relative mb-6 rounded-2xl overflow-hidden border border-border/50 group/img">
             <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[500px]" data-testid="img-post-detail" />
             {(post as any).expiresAt && (
               <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1.5">
                 <span>⏳ Expires <TimeAgo date={(post as any).expiresAt} /></span>
               </div>
             )}
+            <a
+              href={(post as any).imageUrl}
+              download={`nx-photo-${post.id}.jpg`}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold opacity-0 group-hover/img:opacity-100 transition-opacity"
+              title="Save photo to gallery"
+              data-testid="button-save-photo-detail"
+            >
+              <Download className="w-3.5 h-3.5" /> Save Photo
+            </a>
           </div>
         )}
 
