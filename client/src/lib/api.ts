@@ -3,13 +3,19 @@ import { z } from "zod";
 export const getAuthToken = () => localStorage.getItem("nutterx_token");
 export const setAuthToken = (token: string) => localStorage.setItem("nutterx_token", token);
 export const removeAuthToken = () => localStorage.removeItem("nutterx_token");
+export const getAdminKey = () => localStorage.getItem("nx_admin_key");
+export const setAdminKey = (key: string) => localStorage.setItem("nx_admin_key", key);
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
   const token = getAuthToken();
+  const adminKey = getAdminKey();
   const headers = new Headers(options.headers || {});
   
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (adminKey) {
+    headers.set("x-admin-key", adminKey);
   }
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");

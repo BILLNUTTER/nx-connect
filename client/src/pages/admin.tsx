@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions } from "@/hooks/use-admin";
-import { usePosts } from "@/hooks/use-posts";
+import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions, useAdminPosts } from "@/hooks/use-admin";
+import { setAdminKey as persistAdminKey } from "@/lib/api";
 import { useUserPosts } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Input, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, MessageCircle, Copy, Send, FileText, Trash2, Globe, Lock } from "lucide-react";
+import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Post } from "@shared/schema";
 
@@ -33,8 +33,12 @@ export default function AdminDashboard() {
             className="w-full"
             data-testid="button-admin-login"
             onClick={() => {
-              if (adminKey === "admin123" || adminKey === "nutterx-admin-123" || user?.isAdmin) setIsAuthenticated(true);
-              else alert("Invalid Key");
+              if (adminKey === "admin123" || adminKey === "nutterx-admin-123" || user?.isAdmin) {
+                persistAdminKey(adminKey || "nutterx-admin-123");
+                setIsAuthenticated(true);
+              } else {
+                alert("Invalid Key");
+              }
             }}
           >
             Authenticate
@@ -153,8 +157,8 @@ function GlobalNotification() {
           data-testid="select-notification-user"
         >
           <option value="">All users (broadcast)</option>
-          {users?.map(u => (
-            <option key={u.id} value={u.id!}>{u.name} (@{u.username})</option>
+          {users?.map((u, i) => (
+            <option key={u.id || u.username || i} value={u.id!}>{u.name} (@{u.username})</option>
           ))}
         </select>
         <textarea
@@ -324,12 +328,12 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
         <span className="text-sm text-muted-foreground font-normal ml-2">— click a user to manage</span>
       </h2>
       <div className="space-y-3">
-        {users?.map(u => (
+        {users?.map((u, i) => (
           <div
-            key={u.id}
+            key={u.id || u.username || i}
             className="flex items-center gap-4 p-4 rounded-2xl border border-border/50 hover:bg-secondary/50 transition-colors cursor-pointer"
             onClick={() => onSelectUser(u)}
-            data-testid={`row-user-${u.id}`}
+            data-testid={`row-user-${u.id || i}`}
           >
             <Avatar url={u.profilePicture} name={u.name || "U"} online={isOnline((u as any).lastSeen)} />
             <div className="flex-1 min-w-0">
@@ -536,7 +540,7 @@ function UserPostsList({ userId, userName, onDeletePost }: { userId: string; use
 }
 
 function AdminFeedView() {
-  const { data: posts, isLoading } = usePosts();
+  const { data: posts, isLoading } = useAdminPosts();
   const { adminDeletePost } = useAdminActions();
   const { toast } = useToast();
 

@@ -22,6 +22,16 @@ export function useAdminUsers() {
   });
 }
 
+export function useAdminPosts() {
+  return useQuery({
+    queryKey: [api.admin.allPosts.path],
+    queryFn: async () => {
+      const data = await apiFetch(api.admin.allPosts.path);
+      return parseWithLogging(api.admin.allPosts.responses[200], data, "admin.allPosts");
+    },
+  });
+}
+
 export function useAdminPasswordRequests() {
   return useQuery({
     queryKey: [api.admin.passwordRequests.path],
@@ -91,7 +101,10 @@ export function useAdminActions() {
       });
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.posts.list.path] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.admin.allPosts.path] });
+    },
   });
 
   const adminDeletePost = useMutation({
@@ -99,7 +112,10 @@ export function useAdminActions() {
       const url = buildUrl(api.admin.deletePost.path, { id });
       await apiFetch(url, { method: "DELETE" });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.posts.list.path] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.admin.allPosts.path] });
+    },
   });
 
   return { restrictUser, reactivateUser, changePassword, sendNotification, resolvePassword, sendChat, createAdminPost, adminDeletePost };

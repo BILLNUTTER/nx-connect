@@ -244,6 +244,11 @@ export const api = {
       input: z.object({ content: z.string() }),
       responses: { 201: z.object({ message: z.string() }) }
     },
+    allPosts: {
+      method: 'GET' as const,
+      path: '/api/admin/all-posts' as const,
+      responses: { 200: z.array(postSchema) }
+    },
     createPost: {
       method: 'POST' as const,
       path: '/api/admin/posts' as const,

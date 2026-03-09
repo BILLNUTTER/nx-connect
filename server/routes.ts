@@ -782,8 +782,27 @@ export async function registerRoutes(
     res.status(200).json({ message: "Password updated", phone: userPhone });
   });
 
-  app.post(api.admin.sendChat.path, authenticate, adminOnly, async (req: Request, res: Response) => {
-    const adminId = (req as any).userId;
+  app.get(api.admin.allPosts.path, adminOnly, async (req: Request, res: Response) => {
+    const posts = await Post.find()
+      .populate('authorId', 'name username profilePicture lastSeen')
+      .sort({ createdAt: -1 })
+      .limit(500);
+    const result = posts.map((p: any) => {
+      const doc = p.toJSON();
+      doc.author = doc.authorId;
+      doc.likes = doc.likes || [];
+      return doc;
+    });
+    res.status(200).json(result);
+  });
+
+  app.post(api.admin.sendChat.path, adminOnly, async (req: Request, res: Response) => {
+    let adminId = (req as any).userId;
+    if (!adminId) {
+      const adminUser = await User.findOne({ isAdmin: true }).lean() as any;
+      if (!adminUser) return res.status(400).json({ message: 'No admin user found' });
+      adminId = adminUser._id.toString();
+    }
     const { userId } = req.params;
     const { content } = req.body;
     if (!content) return res.status(400).json({ message: "Content required" });
@@ -804,8 +823,13 @@ export async function registerRoutes(
     res.status(201).json({ message: "Sent" });
   });
 
-  app.post(api.admin.createPost.path, authenticate, adminOnly, async (req: Request, res: Response) => {
-    const adminId = (req as any).userId;
+  app.post(api.admin.createPost.path, adminOnly, async (req: Request, res: Response) => {
+    let adminId = (req as any).userId;
+    if (!adminId) {
+      const adminUser = await User.findOne({ isAdmin: true }).lean() as any;
+      if (!adminUser) return res.status(400).json({ message: 'No admin user found to author the post' });
+      adminId = adminUser._id.toString();
+    }
     const { content } = req.body;
     if (!content) return res.status(400).json({ message: "Content required" });
     const post = new Post({ authorId: adminId, content, isAdminPost: true });
