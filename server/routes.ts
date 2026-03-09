@@ -783,12 +783,17 @@ export async function registerRoutes(
 
   app.post(api.admin.sendNotification.path, adminOnly, async (req: Request, res: Response) => {
     const { content, userId } = req.body;
+    if (!content?.trim()) return res.status(400).json({ message: "Content is required" });
     if (userId) {
       await new Notification({ recipientId: userId, type: 'system', content }).save();
     } else {
-      const users = await User.find();
-      const notifs = users.map(u => ({ recipientId: u._id, type: 'system', content }));
-      await Notification.insertMany(notifs);
+      const users = await User.find({ _id: { $exists: true, $ne: null } });
+      const notifs = users
+        .filter(u => u._id)
+        .map(u => ({ recipientId: u._id, type: 'system', content }));
+      if (notifs.length > 0) {
+        await Notification.insertMany(notifs);
+      }
     }
     res.status(201).json({ message: "Notification sent" });
   });
