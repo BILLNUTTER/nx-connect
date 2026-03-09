@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Camera, ChevronDown, Search, X, FileText, MapPin, Phone, Mail, Instagram } from "lucide-react";
+import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Moon, Sun, ChevronDown, Search, X, FileText, MapPin, Phone, Mail, Instagram } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useFriendRequests } from "@/hooks/use-users";
@@ -7,6 +7,27 @@ import { useConversations } from "@/hooks/use-chats";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { Avatar, isOnline } from "@/components/ui/shared";
+
+function useTheme() {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const saved = localStorage.getItem("nx-theme");
+    if (saved) return saved === "dark";
+    return document.documentElement.classList.contains("dark");
+  });
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("nx-theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("nx-theme", "light");
+    }
+  }, [isDark]);
+
+  return { isDark, toggle: () => setIsDark(d => !d) };
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -180,6 +201,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { data: conversations } = useConversations();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const unreadNotifCount = notifications?.filter((n) => !n.read).length || 0;
   const pendingRequestCount = friendRequests?.length || 0;
@@ -244,15 +266,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                       <UserIcon className="w-4 h-4 text-primary" />
                       My Profile
                     </Link>
-                    <Link
-                      href="/profile"
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors text-sm font-medium"
-                      data-testid="menu-item-update-photo"
+                    <button
+                      onClick={() => { toggleTheme(); setMenuOpen(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors text-sm font-medium"
+                      data-testid="menu-item-theme-toggle"
                     >
-                      <Camera className="w-4 h-4 text-accent" />
-                      Update Photo
-                    </Link>
+                      {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+                      {isDark ? "Light theme" : "Dark theme"}
+                    </button>
                     <div className="border-t border-border/50 my-1.5" />
                     <button
                       onClick={() => { setMenuOpen(false); logout(); }}

@@ -521,6 +521,7 @@ export async function registerRoutes(
     const userId = (req as any).userId;
     const messages = await Message.find({ conversationId: req.params.conversationId })
       .populate('senderId', 'name username profilePicture')
+      .populate({ path: 'replyTo', populate: { path: 'senderId', select: 'name username' } })
       .sort({ createdAt: 1 });
     // Mark conversation as read for this user
     await Conversation.findByIdAndUpdate(req.params.conversationId, {
@@ -532,6 +533,12 @@ export async function registerRoutes(
         doc.sender = doc.senderId;
         doc.senderId = doc.senderId.id || doc.senderId._id;
       }
+      if (doc.replyTo && typeof doc.replyTo === 'object') {
+        if (doc.replyTo.senderId && typeof doc.replyTo.senderId === 'object') {
+          doc.replyTo.senderName = doc.replyTo.senderId.name || doc.replyTo.senderId.username;
+          doc.replyTo.senderId = doc.replyTo.senderId.id || doc.replyTo.senderId._id;
+        }
+      }
       return doc;
     });
     res.status(200).json(formatted);
@@ -542,7 +549,8 @@ export async function registerRoutes(
     const msg = new Message({
       conversationId: req.params.conversationId,
       senderId: userId,
-      content: req.body.content
+      content: req.body.content,
+      ...(req.body.replyTo ? { replyTo: req.body.replyTo } : {})
     });
     await msg.save();
     // Update conversation's lastMessage and mark other participants as having unread

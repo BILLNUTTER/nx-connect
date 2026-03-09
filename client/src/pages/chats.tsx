@@ -4,7 +4,7 @@ import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, us
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, UserMinus, LogOut, Camera, ChevronLeft, Shield } from "lucide-react";
+import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -219,6 +219,8 @@ function ActiveChat({
   const sendMessage = useSendMessage();
   const [content, setContent] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [swipeData, setSwipeData] = useState<{ msgId: string; dx: number } | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
@@ -238,8 +240,33 @@ function ActiveChat({
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!content.trim()) return;
-    await sendMessage.mutateAsync({ conversationId, content });
+    await sendMessage.mutateAsync({ conversationId, content, replyTo: replyTo?.id });
     setContent("");
+    setReplyTo(null);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, msg: any) => {
+    const touch = e.touches[0];
+    (e.currentTarget as any)._touchStartX = touch.clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, msg: any) => {
+    const startX = (e.currentTarget as any)._touchStartX;
+    if (startX == null) return;
+    const dx = e.touches[0].clientX - startX;
+    if (dx > 8 || dx < -8) {
+      setSwipeData({ msgId: msg.id, dx: Math.max(-80, Math.min(80, dx)) });
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent, msg: any) => {
+    if (swipeData && swipeData.msgId === msg.id) {
+      if (Math.abs(swipeData.dx) >= 60) {
+        setReplyTo(msg);
+      }
+    }
+    setSwipeData(null);
+    (e.currentTarget as any)._touchStartX = null;
   };
 
   return (
@@ -316,17 +343,42 @@ function ActiveChat({
           const isMe = msg.senderId === currentUserId;
           const senderName = msg.sender?.name || "";
           const senderPic = msg.sender?.profilePicture || "";
+          const swipeDx = swipeData?.msgId === msg.id ? swipeData.dx : 0;
+          const showReplyIcon = Math.abs(swipeDx) >= 30;
 
           return (
-            <div key={msg.id} className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+            <div
+              key={msg.id}
+              className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"} items-center`}
+              onTouchStart={canReply ? (e) => handleTouchStart(e, msg) : undefined}
+              onTouchMove={canReply ? (e) => handleTouchMove(e, msg) : undefined}
+              onTouchEnd={canReply ? (e) => handleTouchEnd(e, msg) : undefined}
+              style={{ userSelect: "none" }}
+            >
               {!isMe && isGroup && (
                 <div className="mt-5 shrink-0">
                   <Avatar url={senderPic} name={senderName || "U"} size="sm" />
                 </div>
               )}
-              <div className={`flex flex-col max-w-[72%] ${isMe ? "items-end" : "items-start"}`}>
+              {showReplyIcon && (
+                <div className={`shrink-0 transition-opacity ${isMe ? "order-first mr-1" : "order-last ml-1"}`}>
+                  <CornerUpLeft className="w-4 h-4 text-primary opacity-80" />
+                </div>
+              )}
+              <div
+                className={`flex flex-col max-w-[72%] ${isMe ? "items-end" : "items-start"} transition-transform`}
+                style={{ transform: `translateX(${swipeDx * 0.4}px)` }}
+              >
                 {!isMe && isGroup && senderName && (
                   <span className="text-xs font-semibold text-primary mb-0.5 ml-1">{senderName}</span>
+                )}
+                {msg.replyTo && (
+                  <div className={`mb-1 px-3 py-1.5 rounded-xl border-l-2 border-primary/60 bg-primary/8 max-w-full ${isMe ? "bg-white/20" : "bg-muted/60"}`}>
+                    <div className="text-[10px] font-semibold text-primary mb-0.5 truncate">
+                      {msg.replyTo.senderName || "Message"}
+                    </div>
+                    <div className="text-xs truncate opacity-70">{msg.replyTo.content}</div>
+                  </div>
                 )}
                 <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${
                   isMe ? "bg-primary text-white rounded-br-sm" : "bg-card border border-border/50 text-foreground rounded-bl-sm"
@@ -347,25 +399,47 @@ function ActiveChat({
       </div>
 
       {canReply ? (
-        <div className="p-4 bg-card border-t border-border">
-          <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
-            <input
-              type="text"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={isGroup ? "Message the group..." : "Type a message..."}
-              className="flex-1 bg-transparent border-none outline-none text-foreground py-2 text-sm"
-              data-testid="input-message"
-            />
-            <button
-              type="submit"
-              disabled={!content.trim() || sendMessage.isPending}
-              className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:scale-105 transition-transform shadow-md shrink-0"
-              data-testid="button-send-message"
-            >
-              <Send className="w-4 h-4 ml-0.5" />
-            </button>
-          </form>
+        <div className="bg-card border-t border-border">
+          {replyTo && (
+            <div className="flex items-center gap-2 px-4 pt-2.5 pb-1">
+              <div className="flex-1 flex items-center gap-2 bg-primary/10 rounded-xl px-3 py-1.5 min-w-0">
+                <CornerUpLeft className="w-3.5 h-3.5 text-primary shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold text-primary truncate">
+                    {replyTo.sender?.name || replyTo.senderName || "Message"}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{replyTo.content}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setReplyTo(null)}
+                className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground"
+                data-testid="button-cancel-reply"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+          <div className="p-4">
+            <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
+              <input
+                type="text"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder={isGroup ? "Message the group..." : "Type a message..."}
+                className="flex-1 bg-transparent border-none outline-none text-foreground py-2 text-sm"
+                data-testid="input-message"
+              />
+              <button
+                type="submit"
+                disabled={!content.trim() || sendMessage.isPending}
+                className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:scale-105 transition-transform shadow-md shrink-0"
+                data-testid="button-send-message"
+              >
+                <Send className="w-4 h-4 ml-0.5" />
+              </button>
+            </form>
+          </div>
         </div>
       ) : (
         <div className="p-4 bg-card border-t border-border flex items-center justify-center gap-2 text-muted-foreground text-sm">

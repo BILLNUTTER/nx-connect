@@ -38,6 +38,7 @@ const messageSchema = new mongoose.Schema({
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   content: { type: String, required: true },
   isSystem: { type: Boolean, default: false },
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
 }, { timestamps: true });
 
 const conversationSchema = new mongoose.Schema({

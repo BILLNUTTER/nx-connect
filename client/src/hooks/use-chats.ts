@@ -43,11 +43,11 @@ export function useMessages(conversationId: string | null) {
 export function useSendMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ conversationId, content }: { conversationId: string; content: string }) => {
+    mutationFn: async ({ conversationId, content, replyTo }: { conversationId: string; content: string; replyTo?: string }) => {
       const url = buildUrl(api.chats.sendMessage.path, { conversationId });
       const data = await apiFetch(url, {
         method: "POST",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, ...(replyTo ? { replyTo } : {}) }),
       });
       return parseWithLogging(api.chats.sendMessage.responses[201], data, "chats.sendMessage");
     },
