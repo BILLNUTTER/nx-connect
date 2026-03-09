@@ -24,8 +24,10 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   const res = await fetch(url, { ...options, headers });
   
   if (res.status === 401) {
-    removeAuthToken();
-    window.dispatchEvent(new Event("auth-expired"));
+    if (!url.startsWith('/api/admin')) {
+      removeAuthToken();
+      window.dispatchEvent(new Event("auth-expired"));
+    }
     throw new Error("Unauthorized");
   }
 

@@ -301,8 +301,10 @@ export async function registerRoutes(
       .sort({ createdAt: 1 });
       
     const formatted = comments.map(c => {
-      const doc = c.toJSON();
+      const doc = c.toJSON() as any;
       doc.author = doc.authorId;
+      doc.likes = (doc.likes || []).map((id: any) => id?.toString ? id.toString() : id);
+      doc.replyTo = doc.replyTo ? doc.replyTo.toString() : null;
       return doc;
     });
     res.status(200).json(formatted);
@@ -317,7 +319,8 @@ export async function registerRoutes(
     const comment = new Comment({
       postId: post._id,
       authorId: userId,
-      content: input.content
+      content: input.content,
+      ...(req.body.replyTo ? { replyTo: req.body.replyTo } : {})
     });
     await comment.save();
     await comment.populate('authorId', 'name username profilePicture lastSeen');
@@ -335,7 +338,26 @@ export async function registerRoutes(
 
     const doc = comment.toJSON() as any;
     doc.author = doc.authorId;
+    doc.likes = [];
+    doc.replyTo = doc.replyTo ? doc.replyTo.toString() : null;
     res.status(201).json(doc);
+  });
+
+  // Like/unlike a comment
+  app.post('/api/posts/:postId/comments/:commentId/like', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const comment = await Comment.findById(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    const alreadyLiked = comment.likes.some((id: any) => id.toString() === userId);
+    if (alreadyLiked) {
+      comment.likes = comment.likes.filter((id: any) => id.toString() !== userId);
+    } else {
+      comment.likes.push(userId);
+    }
+    await comment.save();
+    const doc = comment.toJSON() as any;
+    doc.likes = (doc.likes || []).map((id: any) => id?.toString ? id.toString() : id);
+    res.status(200).json(doc);
   });
 
   // Users (Friends, Discover) - Only show users who joined AFTER current user, no pending requests or existing friendship

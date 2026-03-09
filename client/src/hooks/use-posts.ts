@@ -178,13 +178,26 @@ export function useComments(postId: string) {
 export function useCreateComment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+    mutationFn: async ({ postId, content, replyTo }: { postId: string; content: string; replyTo?: string }) => {
       const url = buildUrl(api.comments.create.path, { postId });
       const data = await apiFetch(url, {
         method: "POST",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, ...(replyTo ? { replyTo } : {}) }),
       });
       return parseWithLogging(api.comments.create.responses[201], data, "comments.create");
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.comments.list.path, variables.postId] });
+    },
+  });
+}
+
+export function useLikeComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ postId, commentId }: { postId: string; commentId: string }) => {
+      const data = await apiFetch(`/api/posts/${postId}/comments/${commentId}/like`, { method: "POST" });
+      return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.comments.list.path, variables.postId] });

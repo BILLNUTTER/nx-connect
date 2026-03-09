@@ -123,7 +123,7 @@ export default function AdminDashboard() {
             data-testid="button-admin-login"
             onClick={() => {
               if (adminKey === "admin123" || adminKey === "nutterx-admin-123" || user?.isAdmin) {
-                persistAdminKey(adminKey || "nutterx-admin-123");
+                persistAdminKey("nutterx-admin-123");
                 setIsAuthenticated(true);
               } else {
                 alert("Invalid Key");

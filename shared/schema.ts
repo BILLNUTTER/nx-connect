@@ -78,10 +78,12 @@ export const commentSchema = z.object({
     username: z.string(),
     profilePicture: z.string().optional(),
   }).optional(),
+  replyTo: z.string().nullable().optional(),
+  likes: z.array(z.string()).default([]),
   content: z.string(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
-});
+}).passthrough();
 
 export const insertCommentSchema = commentSchema.pick({
   content: true,
@@ -93,9 +95,16 @@ export const messageSchema = z.object({
   senderId: z.string(),
   content: z.string(),
   isSystem: z.boolean().optional(),
+  sender: z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    username: z.string().optional(),
+    profilePicture: z.string().optional(),
+  }).optional(),
+  readBy: z.array(z.string()).optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
-});
+}).passthrough();
 
 const participantSchema = z.string().or(z.object({
   id: z.string().optional(),

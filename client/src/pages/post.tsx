@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, useHidePost } from "@/hooks/use-posts";
+import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, useHidePost, useLikeComment } from "@/hooks/use-posts";
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight } from "lucide-react";
 
 export default function PostPage() {
   const [location, setLocation] = useLocation();
@@ -17,10 +17,13 @@ export default function PostPage() {
   const deletePost = useDeletePost();
   const hidePost = useHidePost();
   const createComment = useCreateComment();
+  const likeComment = useLikeComment();
   const { data: friends } = useFriends();
   const getOrCreate = useGetOrCreateConversation();
   const [content, setContent] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
+  const [replyContent, setReplyContent] = useState("");
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto space-y-4 py-4">
@@ -61,6 +64,13 @@ export default function PostPage() {
     if (!content.trim()) return;
     await createComment.mutateAsync({ postId: id, content });
     setContent("");
+  };
+
+  const handleReplySend = async () => {
+    if (!replyContent.trim() || !replyingTo) return;
+    await createComment.mutateAsync({ postId: id, content: replyContent, replyTo: replyingTo.id });
+    setReplyContent("");
+    setReplyingTo(null);
   };
 
   const handleMessage = async () => {
@@ -204,35 +214,113 @@ export default function PostPage() {
             <p className="text-sm">No comments yet. Be the first!</p>
           </div>
         ) : (
-          <div className="space-y-4 mb-6">
-            {comments.map(c => (
-              <div key={c.id} className="flex gap-3">
-                <button
-                  onClick={() => {
-                    const cAuthorId = (c.author as any)?.id || (c.authorId as any)?.id;
-                    if (cAuthorId) setLocation(`/profile/${cAuthorId}`);
-                  }}
-                  className="shrink-0 hover:opacity-80 transition-opacity"
-                >
-                  <Avatar url={c.author?.profilePicture} name={c.author?.name || "U"} size="sm" />
-                </button>
-                <div className="flex-1 bg-secondary/50 rounded-2xl p-3">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <button
-                      onClick={() => {
-                        const cAuthorId = (c.author as any)?.id || (c.authorId as any)?.id;
-                        if (cAuthorId) setLocation(`/profile/${cAuthorId}`);
-                      }}
-                      className="font-bold text-sm hover:underline text-left"
-                    >
-                      {c.author?.name}
+          <div className="space-y-3 mb-6">
+            {comments.filter((c: any) => !c.replyTo).map((c: any) => {
+              const cAuthorId = c.author?.id || (c.authorId as any)?.id;
+              const hasLikedComment = (c.likes || []).includes(user?.id || "");
+              const replies = comments.filter((r: any) => r.replyTo === c.id);
+              return (
+                <div key={c.id}>
+                  <div className="flex gap-3">
+                    <button onClick={() => cAuthorId && setLocation(`/profile/${cAuthorId}`)} className="shrink-0 hover:opacity-80 transition-opacity">
+                      <Avatar url={c.author?.profilePicture} name={c.author?.name || "U"} size="sm" />
                     </button>
-                    <span className="text-xs text-muted-foreground"><TimeAgo date={c.createdAt!} /></span>
+                    <div className="flex-1 min-w-0">
+                      <div className="bg-secondary/50 rounded-2xl px-4 py-3">
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <button onClick={() => cAuthorId && setLocation(`/profile/${cAuthorId}`)} className="font-bold text-sm hover:underline text-left">
+                            {c.author?.name}
+                          </button>
+                          <span className="text-xs text-muted-foreground"><TimeAgo date={c.createdAt!} /></span>
+                        </div>
+                        <p className="text-sm">{c.content}</p>
+                      </div>
+                      <div className="flex items-center gap-4 mt-1.5 px-2">
+                        <button
+                          onClick={() => likeComment.mutate({ postId: id, commentId: c.id })}
+                          className={`flex items-center gap-1 text-xs font-semibold transition-colors ${hasLikedComment ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"}`}
+                          data-testid={`button-like-comment-${c.id}`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${hasLikedComment ? "fill-current" : ""}`} />
+                          {c.likes?.length > 0 && <span>{c.likes.length}</span>}
+                          Like
+                        </button>
+                        <button
+                          onClick={() => { setReplyingTo({ id: c.id, name: c.author?.name || "User" }); setReplyContent(""); }}
+                          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+                          data-testid={`button-reply-comment-${c.id}`}
+                        >
+                          <CornerDownRight className="w-3.5 h-3.5" /> Reply
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm">{c.content}</p>
+                  {/* Replies */}
+                  {replies.length > 0 && (
+                    <div className="ml-12 mt-2 space-y-2">
+                      {replies.map((r: any) => {
+                        const rAuthorId = r.author?.id || (r.authorId as any)?.id;
+                        const hasLikedReply = (r.likes || []).includes(user?.id || "");
+                        return (
+                          <div key={r.id} className="flex gap-2">
+                            <button onClick={() => rAuthorId && setLocation(`/profile/${rAuthorId}`)} className="shrink-0 hover:opacity-80 transition-opacity">
+                              <Avatar url={r.author?.profilePicture} name={r.author?.name || "U"} size="sm" />
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <div className="bg-secondary/30 rounded-2xl px-3 py-2">
+                                <div className="flex items-baseline gap-2 mb-0.5">
+                                  <button onClick={() => rAuthorId && setLocation(`/profile/${rAuthorId}`)} className="font-bold text-xs hover:underline text-left">
+                                    {r.author?.name}
+                                  </button>
+                                  <span className="text-[10px] text-muted-foreground"><TimeAgo date={r.createdAt!} /></span>
+                                </div>
+                                <p className="text-xs">{r.content}</p>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 px-1">
+                                <button
+                                  onClick={() => likeComment.mutate({ postId: id, commentId: r.id })}
+                                  className={`flex items-center gap-1 text-[10px] font-semibold transition-colors ${hasLikedReply ? "text-pink-500" : "text-muted-foreground hover:text-pink-500"}`}
+                                >
+                                  <Heart className={`w-3 h-3 ${hasLikedReply ? "fill-current" : ""}`} />
+                                  {r.likes?.length > 0 && <span>{r.likes.length}</span>}
+                                  Like
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Reply input */}
+                  {replyingTo?.id === c.id && (
+                    <div className="ml-12 mt-2 flex items-center gap-2">
+                      <Avatar url={user?.profilePicture} name={user?.name || "U"} size="sm" />
+                      <div className="flex-1 flex items-center bg-secondary rounded-full px-3 py-2 gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={replyContent}
+                          onChange={e => setReplyContent(e.target.value)}
+                          placeholder={`Reply to ${replyingTo.name}...`}
+                          className="flex-1 bg-transparent border-none outline-none text-xs"
+                          onKeyDown={e => e.key === "Enter" && handleReplySend()}
+                          data-testid="input-reply"
+                        />
+                        <button onClick={() => setReplyingTo(null)} className="text-muted-foreground text-xs">✕</button>
+                        <button
+                          onClick={handleReplySend}
+                          disabled={!replyContent.trim() || createComment.isPending}
+                          className="text-primary disabled:opacity-40 transition-opacity"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
