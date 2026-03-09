@@ -35,13 +35,17 @@ export default function NotificationsPage() {
     const senderId = getSenderId(notif);
     const postId = getPostId(notif);
     if (notif.type === "friend_request") {
-      setLocation(notif.read && senderId ? `/profile/${senderId}` : "/friends");
+      setLocation(notif.read && senderId ? `/profile/${senderId}` : "/friends?tab=requests");
     } else if (notif.type === "friend_accept" && senderId) {
       setLocation(`/profile/${senderId}`);
     } else if ((notif.type === "like" || notif.type === "comment") && postId) {
       setLocation(`/post/${postId}`);
     } else if (notif.type === "friend_post" && postId) {
       setLocation(`/post/${postId}`);
+    } else if (notif.type === "system" && notif.content?.toLowerCase().includes("follow suggestion")) {
+      setLocation("/friends?tab=discover");
+    } else if (notif.type === "system" && notif.content?.toLowerCase().includes("joined")) {
+      setLocation("/friends?tab=discover");
     }
   };
 

@@ -3,28 +3,39 @@ import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, 
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, isOnline } from "@/components/ui/shared";
 import { UserPlus, UserCheck, UserMinus, MessageSquare } from "lucide-react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import type { User } from "@shared/schema";
 
 export default function FriendsPage() {
-  const [tab, setTab] = useState<"discover" | "friends" | "requests">("discover");
-  
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const initialTab = (params.get("tab") as "discover" | "friends" | "requests") || "discover";
+  const [tab, setTab] = useState<"discover" | "friends" | "requests">(initialTab);
+  const { data: requests } = useFriendRequests();
+  const requestCount = requests?.length || 0;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-20">
+    <div className="max-w-4xl mx-auto space-y-6 pb-6">
       <div className="flex bg-card rounded-2xl p-1 shadow-sm border border-border/50">
         {[
           { id: "discover", label: "Discover" },
           { id: "friends", label: "My Friends" },
-          { id: "requests", label: "Requests" }
+          { id: "requests", label: "Requests", count: requestCount }
         ].map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id as any)}
-            className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${
+            className={`relative flex-1 py-3 text-sm font-bold rounded-xl transition-all ${
               tab === t.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-secondary/50"
             }`}
+            data-testid={`tab-${t.id}`}
           >
             {t.label}
+            {(t as any).count > 0 && tab !== t.id && (
+              <span className="absolute top-1 right-2 min-w-[18px] h-[18px] bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full px-1">
+                {(t as any).count > 9 ? "9+" : (t as any).count}
+              </span>
+            )}
           </button>
         ))}
       </div>

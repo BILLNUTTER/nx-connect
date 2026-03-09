@@ -199,7 +199,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/home", icon: Home, label: "Home", badge: 0 },
-    { href: "/friends", icon: Users, label: "Friends", badge: pendingRequestCount },
+    { href: pendingRequestCount > 0 ? "/friends?tab=requests" : "/friends", matchHref: "/friends", icon: Users, label: "Friends", badge: pendingRequestCount },
     { href: "/chats", icon: MessageCircle, label: "Chats", badge: unreadChatCount },
     { href: "/notifications", icon: Bell, label: "Notifications", badge: unreadNotifCount },
   ];
@@ -270,10 +270,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center justify-center border-t border-border/30 -mx-4 px-2">
             {navItems.map((item) => {
-              const isActive = location === item.href || location.startsWith(`${item.href}/`);
+              const matchPath = (item as any).matchHref || item.href;
+              const isActive = location === matchPath || location.startsWith(`${matchPath}/`) || location.startsWith(`${matchPath}?`);
               return (
                 <Link
-                  key={item.href}
+                  key={matchPath}
                   href={item.href}
                   className={`relative flex-1 flex items-center justify-center py-2.5 transition-all duration-200 border-b-2 ${
                     isActive
@@ -296,11 +297,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-4xl mx-auto p-4 animate-in">
+      <main className={`flex-1 w-full max-w-4xl mx-auto animate-in ${location.startsWith('/chats') || location.startsWith('/friends') ? "p-4 overflow-hidden" : "p-4"}`}>
         {children}
       </main>
 
-      <footer className="border-t border-border/40 bg-secondary/10 mt-8">
+      {!location.startsWith('/chats') && !location.startsWith('/friends') && <footer className="border-t border-border/40 bg-secondary/10 mt-8">
         <div className="max-w-4xl mx-auto px-4 py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
@@ -321,7 +322,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             © {new Date().getFullYear()} NX-Connect · Nairobi, Kenya · All rights reserved.
           </div>
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }
