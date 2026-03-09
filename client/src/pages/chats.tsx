@@ -81,8 +81,8 @@ export default function ChatsPage() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto bg-card rounded-3xl shadow-xl border border-border/50 overflow-hidden flex h-[calc(100vh-8rem)]">
-        <div className={`w-full md:w-80 border-r border-border flex flex-col ${activeConvId ? "hidden md:flex" : "flex"}`}>
+      <div className="flex overflow-hidden -m-4" style={{ height: "calc(100svh - 7rem)" }}>
+        <div className={`w-full md:w-72 border-r border-border/60 flex flex-col bg-card shrink-0 ${activeConvId ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="text-xl font-display font-bold">Messages</h2>
             <button
@@ -153,7 +153,7 @@ export default function ChatsPage() {
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col bg-background ${!activeConvId ? "hidden md:flex" : "flex"}`}>
+        <div className={`flex-1 flex flex-col bg-background min-w-0 ${!activeConvId ? "hidden md:flex" : "flex"}`}>
           {activeConvId ? (
             <ActiveChat
               conversationId={activeConvId}
