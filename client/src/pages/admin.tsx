@@ -492,8 +492,12 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
 
   const handleDeletePost = async (postId: string) => {
     if (!confirm("Delete this post?")) return;
-    await adminDeletePost.mutateAsync(postId);
-    toast({ title: "Post deleted" });
+    try {
+      await adminDeletePost.mutateAsync(postId);
+      toast({ title: "Post deleted" });
+    } catch {
+      toast({ title: "Delete failed", description: "Could not delete the post. Try again.", variant: "destructive" });
+    }
   };
 
   return (
@@ -642,8 +646,12 @@ function AdminFeedView() {
 
   const handleDelete = async (postId: string) => {
     if (!confirm("Delete this post?")) return;
-    await adminDeletePost.mutateAsync(postId);
-    toast({ title: "Post deleted" });
+    try {
+      await adminDeletePost.mutateAsync(postId);
+      toast({ title: "Post deleted" });
+    } catch {
+      toast({ title: "Delete failed", description: "Could not delete the post. Try again.", variant: "destructive" });
+    }
   };
 
   if (isLoading) return <div className="text-center text-muted-foreground animate-pulse py-20">Loading feed...</div>;

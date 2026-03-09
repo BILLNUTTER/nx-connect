@@ -122,6 +122,7 @@ export function useHidePost() {
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
+      queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
     },
   });
 }

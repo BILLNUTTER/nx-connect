@@ -42,6 +42,10 @@ export default function NotificationsPage() {
       setLocation(`/post/${postId}`);
     } else if (notif.type === "friend_post" && postId) {
       setLocation(`/post/${postId}`);
+    } else if (notif.type === "friend_suggestion") {
+      const sId = getSenderId(notif);
+      if (sId) setLocation(`/profile/${sId}`);
+      else setLocation("/friends?tab=discover");
     } else if (notif.type === "system" && notif.content?.toLowerCase().includes("follow suggestion")) {
       setLocation("/friends?tab=discover");
     } else if (notif.type === "system" && notif.content?.toLowerCase().includes("joined")) {
@@ -90,15 +94,17 @@ export default function NotificationsPage() {
             friend_accept: <UserPlus className="w-5 h-5 text-green-500" />,
             friend_post: <Bell className="w-5 h-5 text-accent" />,
             system: <Info className="w-5 h-5 text-yellow-500" />,
+            friend_suggestion: <UserPlus className="w-5 h-5 text-violet-500" />,
           };
 
           const isFriendRequest = notif.type === "friend_request";
+          const isFriendSuggestion = notif.type === "friend_suggestion";
           const isPostNotif = notif.type === "like" || notif.type === "comment" || notif.type === "friend_post";
           const senderId = getSenderId(notif);
           const postId = getPostId(notif);
           const postSnippet = getPostSnippet(notif);
           const senderObj = typeof (notif as any).senderId === "object" ? (notif as any).senderId : null;
-          const isClickable = (isPostNotif && postId) || notif.type === "friend_accept" || notif.type === "friend_request";
+          const isClickable = (isPostNotif && postId) || notif.type === "friend_accept" || notif.type === "friend_request" || isFriendSuggestion;
 
           return (
             <div
@@ -141,6 +147,9 @@ export default function NotificationsPage() {
                   )}
                   {notif.type === "friend_accept" && senderId && (
                     <span className="text-muted-foreground">· Tap to view profile</span>
+                  )}
+                  {isFriendSuggestion && (
+                    <span className="text-muted-foreground">· Tap to view profile &amp; follow</span>
                   )}
                   {isFriendRequest && !notif.read && (
                     <span className="text-muted-foreground">· Tap to view request</span>

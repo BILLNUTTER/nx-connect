@@ -135,7 +135,7 @@ export const notificationSchema = z.object({
     username: z.string().optional(),
     profilePicture: z.string().optional(),
   })).optional(),
-  type: z.enum(["like", "comment", "friend_request", "friend_accept", "friend_post", "system"]),
+  type: z.enum(["like", "comment", "friend_request", "friend_accept", "friend_post", "system", "friend_suggestion"]),
   postId: z.union([z.string(), z.object({ id: z.string().optional(), content: z.string().optional() }), z.null()]).optional(),
   content: z.string().optional(),
   read: z.boolean().default(false),

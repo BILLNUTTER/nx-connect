@@ -60,7 +60,7 @@ const conversationSchema = new mongoose.Schema({
 const notificationSchema = new mongoose.Schema({
   recipientId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  type: { type: String, enum: ["like", "comment", "friend_request", "friend_accept", "friend_post", "system"], required: true },
+  type: { type: String, enum: ["like", "comment", "friend_request", "friend_accept", "friend_post", "system", "friend_suggestion"], required: true },
   postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   content: { type: String },
   read: { type: Boolean, default: false },

@@ -139,6 +139,7 @@ export function useAdminActions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
       queryClient.invalidateQueries({ queryKey: [api.admin.allPosts.path] });
+      queryClient.invalidateQueries({ queryKey: [api.users.posts.path] });
     },
   });
 

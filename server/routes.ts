@@ -48,14 +48,15 @@ export async function registerRoutes(
       const user = new User({ ...input, password: hashedPassword });
       await user.save();
 
-      // Send notification to all users about new follow suggestions
+      // Send friend suggestion notification to all existing users
       try {
         const allUsers = await User.find({ _id: { $ne: user._id }, username: { $ne: 'nx-connect' } });
         if (allUsers.length > 0) {
           const notifications = allUsers.map(u => ({
             recipientId: u._id,
-            type: 'system',
-            content: `${input.name} just joined! New follow suggestion available.`
+            senderId: user._id,
+            type: 'friend_suggestion',
+            content: `You have a new friend suggestion — ${input.name} (@${input.username}) just joined NX-Connect!`
           }));
           await Notification.insertMany(notifications);
         }
@@ -914,11 +915,19 @@ export async function registerRoutes(
   });
 
   app.delete(api.admin.deletePost.path, adminOnly, async (req: Request, res: Response) => {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: "Not found" });
-    await Post.deleteOne({ _id: post._id });
-    await Comment.deleteMany({ postId: post._id });
-    res.status(200).json({ message: "Post deleted" });
+    try {
+      if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: "Invalid post ID" });
+      }
+      const post = await Post.findById(req.params.id);
+      if (!post) return res.status(404).json({ message: "Post not found" });
+      await Post.deleteOne({ _id: post._id });
+      await Comment.deleteMany({ postId: post._id });
+      res.status(200).json({ message: "Post deleted" });
+    } catch (err) {
+      console.error("Admin delete post error:", err);
+      res.status(500).json({ message: "Server error deleting post" });
+    }
   });
 
   app.get(api.admin.getProfile.path, adminOnly, async (_req: Request, res: Response) => {
