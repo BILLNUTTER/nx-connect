@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import bcrypt from "bcrypt";
+import mongoose from "mongoose";
 import { api, errorSchemas } from "@shared/routes";
 import { z } from "zod";
 import { connectDB } from "./db";
@@ -766,16 +767,27 @@ export async function registerRoutes(
   });
 
   app.put(api.admin.restrictUser.path, adminOnly, async (req: Request, res: Response) => {
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
     const user = await User.findByIdAndUpdate(req.params.id, { status: "restricted" }, { new: true }).select('-password');
-    res.status(200).json(user?.toJSON());
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.toJSON());
   });
 
   app.put(api.admin.reactivateUser.path, adminOnly, async (req: Request, res: Response) => {
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
     const user = await User.findByIdAndUpdate(req.params.id, { status: "active" }, { new: true }).select('-password');
-    res.status(200).json(user?.toJSON());
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.toJSON());
   });
 
   app.put(api.admin.changePassword.path, adminOnly, async (req: Request, res: Response) => {
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
     await User.findByIdAndUpdate(req.params.id, { password: hashedPassword });
     res.status(200).json({ message: "Password updated" });

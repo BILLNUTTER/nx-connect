@@ -436,17 +436,19 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
             }`}>
               {u.status?.toUpperCase()}
             </span>
-            <div onClick={e => e.stopPropagation()}>
-              {u.status === "active" ? (
-                <Button variant="destructive" size="sm" onClick={() => restrictUser.mutate(u.id!)} data-testid={`button-restrict-${u.id}`}>
-                  <Ban className="w-4 h-4 mr-1" /> Suspend
-                </Button>
-              ) : (
-                <Button className="bg-green-500 hover:bg-green-600 text-white" size="sm" onClick={() => reactivateUser.mutate(u.id!)} data-testid={`button-reactivate-${u.id}`}>
-                  <CheckCircle className="w-4 h-4 mr-1" /> Activate
-                </Button>
-              )}
-            </div>
+            {u.id && (
+              <div onClick={e => e.stopPropagation()}>
+                {u.status === "active" ? (
+                  <Button variant="destructive" size="sm" onClick={() => restrictUser.mutate(u.id!)} data-testid={`button-restrict-${u.id}`}>
+                    <Ban className="w-4 h-4 mr-1" /> Suspend
+                  </Button>
+                ) : (
+                  <Button className="bg-green-500 hover:bg-green-600 text-white" size="sm" onClick={() => reactivateUser.mutate(u.id!)} data-testid={`button-reactivate-${u.id}`}>
+                    <CheckCircle className="w-4 h-4 mr-1" /> Activate
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -532,14 +534,18 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
             <span className={`px-4 py-2 rounded-full text-sm font-bold ${user.status === "active" ? "bg-green-500/10 text-green-500" : "bg-destructive/10 text-destructive"}`}>
               {user.status?.toUpperCase()}
             </span>
-            {user.status === "active" ? (
-              <Button variant="destructive" size="sm" onClick={handleSuspend} data-testid="button-suspend-user">
-                <Ban className="w-4 h-4 mr-1" /> Suspend
-              </Button>
+            {user.id ? (
+              user.status === "active" ? (
+                <Button variant="destructive" size="sm" onClick={handleSuspend} data-testid="button-suspend-user">
+                  <Ban className="w-4 h-4 mr-1" /> Suspend
+                </Button>
+              ) : (
+                <Button className="bg-green-500 hover:bg-green-600 text-white" size="sm" onClick={handleActivate} data-testid="button-activate-user">
+                  <CheckCircle className="w-4 h-4 mr-1" /> Activate
+                </Button>
+              )
             ) : (
-              <Button className="bg-green-500 hover:bg-green-600 text-white" size="sm" onClick={handleActivate} data-testid="button-activate-user">
-                <CheckCircle className="w-4 h-4 mr-1" /> Activate
-              </Button>
+              <span className="text-xs text-muted-foreground">Legacy account</span>
             )}
             {user.status === "restricted" && user.phone && (
               <p className="text-xs text-muted-foreground text-right max-w-[180px]">Contact user externally at <strong>{user.phone}</strong> to inform of suspension.</p>
@@ -596,8 +602,8 @@ function UserPostsList({ userId, userName, onDeletePost }: { userId: string; use
         <Card className="text-center py-12 text-muted-foreground">This user hasn't posted anything yet.</Card>
       ) : (
         <div className="space-y-4">
-          {posts.map((post: Post) => (
-            <Card key={post.id} data-testid={`card-post-${post.id}`}>
+          {posts.map((post: Post, i: number) => (
+            <Card key={post.id || i} data-testid={`card-post-${post.id || i}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} size="sm" />
@@ -646,8 +652,8 @@ function AdminFeedView() {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground px-1">Viewing all posts. Use the delete button to remove posts that violate community rules.</p>
       {!posts?.length && <Card className="text-center py-12 text-muted-foreground">No posts yet.</Card>}
-      {posts?.map(post => (
-        <Card key={post.id} data-testid={`feed-post-${post.id}`}>
+      {posts?.map((post, i) => (
+        <Card key={post.id || i} data-testid={`feed-post-${post.id || i}`}>
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               <Avatar url={post.author?.profilePicture} name={post.author?.name || "U"} size="sm" />

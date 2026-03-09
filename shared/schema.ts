@@ -145,7 +145,11 @@ export const notificationSchema = z.object({
 
 export const forgotPasswordSchema = z.object({
   id: z.string(),
-  userId: z.string().optional(),
+  userId: z.string().or(z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    username: z.string().optional(),
+  })).optional(),
   username: z.string().optional(),
   user: userSchema.optional(),
   phone: z.string(),
@@ -153,7 +157,7 @@ export const forgotPasswordSchema = z.object({
   status: z.enum(["pending", "resolved"]),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()
-});
+}).passthrough();
 
 export type User = z.infer<typeof userSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
