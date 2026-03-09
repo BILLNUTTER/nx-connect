@@ -14,10 +14,29 @@ export async function registerRoutes(
   // Connect to MongoDB
   await connectDB();
 
+  // Seed dedicated NX-Connect system account (admin identity, never tied to any real user login)
+  const nxExists = await User.findOne({ username: 'nx-connect' });
+  if (!nxExists) {
+    const hashedPw = await bcrypt.hash('nxconnect-system-' + Date.now(), 10);
+    await User.create({
+      name: 'NX-Connect',
+      username: 'nx-connect',
+      email: 'system@nx-connect.internal',
+      phone: '0000000000',
+      password: hashedPw,
+      isAdmin: true,
+      profilePicture: '',
+    });
+    console.log('[seed] NX-Connect system account created.');
+  }
+
   // Auth Routes
   app.post(api.auth.signup.path, async (req: Request, res: Response) => {
     try {
       const input = api.auth.signup.input.parse(req.body);
+      if (input.username === 'nx-connect') {
+        return res.status(400).json({ message: "Username not available" });
+      }
       const existingUser = await User.findOne({ $or: [{ username: input.username }, { email: input.email }] });
       
       if (existingUser) {
@@ -30,7 +49,7 @@ export async function registerRoutes(
 
       // Send notification to all users about new follow suggestions
       try {
-        const allUsers = await User.find({ _id: { $ne: user._id } });
+        const allUsers = await User.find({ _id: { $ne: user._id }, username: { $ne: 'nx-connect' } });
         if (allUsers.length > 0) {
           const notifications = allUsers.map(u => ({
             recipientId: u._id,
@@ -60,7 +79,7 @@ export async function registerRoutes(
       const input = api.auth.login.input.parse(req.body);
       const user = await User.findOne({ username: input.username });
       
-      if (!user) {
+      if (!user || user.username === 'nx-connect') {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
@@ -700,7 +719,7 @@ export async function registerRoutes(
     if (!q || q.length < 2) return res.status(200).json({ users: [], posts: [] });
     const regex = new RegExp(q, "i");
     const [users, posts] = await Promise.all([
-      User.find({ $or: [{ name: regex }, { username: regex }] }).select('-password').limit(8),
+      User.find({ $or: [{ name: regex }, { username: regex }], username: { $ne: 'nx-connect' } }).select('-password').limit(8),
       Post.find({ content: regex, $or: [{ hidden: false }, { hidden: { $exists: false } }] })
         .populate('authorId', 'name username profilePicture lastSeen').sort({ createdAt: -1 }).limit(8),
     ]);
@@ -714,7 +733,7 @@ export async function registerRoutes(
 
   // Admin
   app.get(api.admin.users.path, adminOnly, async (req: Request, res: Response) => {
-    const users = await User.find().select('-password');
+    const users = await User.find({ username: { $ne: 'nx-connect' } }).select('-password');
     res.status(200).json(users.map(u => u.toJSON()));
   });
 
@@ -797,12 +816,9 @@ export async function registerRoutes(
   });
 
   app.post(api.admin.sendChat.path, adminOnly, async (req: Request, res: Response) => {
-    let adminId = (req as any).userId;
-    if (!adminId) {
-      const adminUser = await User.findOne({ isAdmin: true }).lean() as any;
-      if (!adminUser) return res.status(400).json({ message: 'No admin user found' });
-      adminId = adminUser._id.toString();
-    }
+    const nxUser = await User.findOne({ username: 'nx-connect' }).lean() as any;
+    if (!nxUser) return res.status(400).json({ message: 'NX-Connect system account not found' });
+    const adminId = nxUser._id.toString();
     const { userId } = req.params;
     const { content } = req.body;
     if (!content) return res.status(400).json({ message: "Content required" });
@@ -824,12 +840,9 @@ export async function registerRoutes(
   });
 
   app.post(api.admin.createPost.path, adminOnly, async (req: Request, res: Response) => {
-    let adminId = (req as any).userId;
-    if (!adminId) {
-      const adminUser = await User.findOne({ isAdmin: true }).lean() as any;
-      if (!adminUser) return res.status(400).json({ message: 'No admin user found to author the post' });
-      adminId = adminUser._id.toString();
-    }
+    const nxUser = await User.findOne({ username: 'nx-connect' }).lean() as any;
+    if (!nxUser) return res.status(400).json({ message: 'NX-Connect system account not found' });
+    const adminId = nxUser._id.toString();
     const { content } = req.body;
     if (!content) return res.status(400).json({ message: "Content required" });
     const post = new Post({ authorId: adminId, content, isAdminPost: true });
@@ -850,8 +863,8 @@ export async function registerRoutes(
   });
 
   app.get(api.admin.getProfile.path, adminOnly, async (_req: Request, res: Response) => {
-    const admin = await User.findOne({ isAdmin: true }).lean() as any;
-    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    const admin = await User.findOne({ username: 'nx-connect' }).lean() as any;
+    if (!admin) return res.status(404).json({ message: "NX-Connect system account not found" });
     res.json({ ...admin, id: admin._id?.toString() });
   });
 
@@ -860,8 +873,8 @@ export async function registerRoutes(
     const updates: any = {};
     if (profilePicture !== undefined) updates.profilePicture = profilePicture;
     if (name !== undefined) updates.name = name;
-    const admin = await User.findOneAndUpdate({ isAdmin: true }, { $set: updates }, { new: true }).lean() as any;
-    if (!admin) return res.status(404).json({ message: "Admin not found" });
+    const admin = await User.findOneAndUpdate({ username: 'nx-connect' }, { $set: updates }, { new: true }).lean() as any;
+    if (!admin) return res.status(404).json({ message: "NX-Connect system account not found" });
     res.json({ ...admin, id: admin._id?.toString() });
   });
 
