@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useConversations, useMessages, useSendMessage } from "@/hooks/use-chats";
+import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
@@ -52,6 +52,7 @@ export default function ChatsPage() {
   const joinToken = params.get("join");
   const [activeConvId, setActiveConvId] = useState<string | null>(defaultConvId);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showNewDM, setShowNewDM] = useState(false);
   const [showJoinDialog, setShowJoinDialog] = useState(!!joinToken);
   const { data: joinGroupInfo } = useGroupByToken(joinToken);
   const joinGroup = useJoinGroup();
@@ -83,15 +84,25 @@ export default function ChatsPage() {
     <>
       <div className="flex overflow-hidden -m-4" style={{ height: "calc(100svh - 7rem)" }}>
         <div className={`w-full md:w-72 border-r border-border/60 flex flex-col bg-card shrink-0 ${activeConvId ? "hidden md:flex" : "flex"}`}>
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h2 className="text-xl font-display font-bold">Messages</h2>
-            <button
-              onClick={() => setShowCreateGroup(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-primary/10 text-primary px-3 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
-              data-testid="button-new-group"
-            >
-              <Plus className="w-3.5 h-3.5" /> New Group
-            </button>
+          <div className="p-4 border-b border-border flex items-center justify-between gap-2">
+            <h2 className="text-xl font-display font-bold shrink-0">Messages</h2>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowNewDM(true)}
+                className="flex items-center gap-1 text-xs font-semibold bg-secondary text-foreground px-2.5 py-1.5 rounded-full hover:bg-secondary/80 transition-colors border border-border"
+                data-testid="button-new-dm"
+                title="New Message"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> DM
+              </button>
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="flex items-center gap-1 text-xs font-semibold bg-primary/10 text-primary px-2.5 py-1.5 rounded-full hover:bg-primary/20 transition-colors"
+                data-testid="button-new-group"
+              >
+                <Plus className="w-3.5 h-3.5" /> Group
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -172,6 +183,13 @@ export default function ChatsPage() {
           )}
         </div>
       </div>
+
+      {showNewDM && (
+        <NewDirectMessageModal
+          onClose={() => setShowNewDM(false)}
+          onStartChat={(convId) => { setShowNewDM(false); setActiveConvId(convId); }}
+        />
+      )}
 
       {showCreateGroup && (
         <CreateGroupModal onClose={() => setShowCreateGroup(false)} onCreated={(id) => { setShowCreateGroup(false); setActiveConvId(id); }} />
@@ -394,7 +412,7 @@ function ActiveChat({
                   </span>
                   {isMe && !isGroup && (
                     msg.readBy?.includes(otherUser?.id || otherUser?._id)
-                      ? <CheckCheck className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                      ? <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                       : otherUser?.lastSeen && new Date(otherUser.lastSeen) > new Date(msg.createdAt)
                         ? <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
                         : <Check className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
@@ -659,6 +677,73 @@ function GroupSettingsPanel({
               <LogOut className="w-4 h-4" /> Leave Group
             </button>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewDirectMessageModal({ onClose, onStartChat }: { onClose: () => void; onStartChat: (convId: string) => void }) {
+  const { data: friends, isLoading } = useFriends();
+  const getOrCreate = useGetOrCreateConversation();
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+
+  const filtered = (friends || []).filter((f: any) =>
+    f.name?.toLowerCase().includes(search.toLowerCase()) ||
+    f.username?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSelect = async (userId: string) => {
+    try {
+      const conv = await getOrCreate.mutateAsync(userId);
+      onStartChat(conv.id);
+    } catch (err: any) {
+      toast({ title: "Error", description: err?.message || "Could not open conversation", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card rounded-2xl shadow-2xl border border-border p-5 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">New Message</h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground" data-testid="button-close-new-dm">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <input
+          type="text"
+          placeholder="Search friends..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary mb-3"
+          data-testid="input-dm-search"
+          autoFocus
+        />
+        <div className="max-h-72 overflow-y-auto space-y-1">
+          {isLoading && <div className="text-center py-6 text-muted-foreground text-sm">Loading friends...</div>}
+          {!isLoading && filtered.length === 0 && (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              {friends?.length === 0 ? "Add friends first to start a DM" : "No friends match your search"}
+            </div>
+          )}
+          {filtered.map((friend: any) => (
+            <button
+              key={friend.id}
+              onClick={() => handleSelect(friend.id)}
+              disabled={getOrCreate.isPending}
+              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors text-left disabled:opacity-60"
+              data-testid={`button-start-dm-${friend.id}`}
+            >
+              <Avatar url={friend.profilePicture} name={friend.name || "U"} size="sm" online={isOnline(friend.lastSeen)} />
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm truncate">{friend.name}</div>
+                <div className="text-xs text-muted-foreground truncate">@{friend.username}</div>
+              </div>
+              <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
+            </button>
+          ))}
         </div>
       </div>
     </div>

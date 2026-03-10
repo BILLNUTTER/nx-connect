@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, isOnline } from "@/components/ui/shared";
-import { UserPlus, UserCheck, UserMinus, MessageSquare } from "lucide-react";
+import { UserPlus, UserCheck, UserMinus, MessageSquare, Search, X } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
+import { apiFetch } from "@/lib/api";
 import type { User } from "@shared/schema";
 
 export default function FriendsPage() {
@@ -50,28 +51,103 @@ export default function FriendsPage() {
 }
 
 function DiscoverTab() {
-  const { data: users, isLoading } = useDiscoverUsers();
+  const { data: suggestedUsers, isLoading } = useDiscoverUsers();
   const { data: currentUser } = useAuthUser();
   const sendReq = useSendFriendRequest();
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (isLoading) return <div className="col-span-full text-center py-10">Loading suggestions...</div>;
-  if (!users?.length) return <div className="col-span-full text-center py-10 text-muted-foreground">No new people to discover right now.</div>;
+  const handleSearch = useCallback((q: string) => {
+    setQuery(q);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!q.trim() || q.trim().length < 2) {
+      setSearchResults(null);
+      return;
+    }
+    setSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const data = await apiFetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+        setSearchResults(data.users || []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+  }, []);
 
-  return users.map(user => {
+  const displayUsers = searchResults !== null ? searchResults : (suggestedUsers || []);
+  const isSearchMode = searchResults !== null;
+
+  const renderUser = (user: any) => {
+    const isFriend = currentUser?.friends?.includes(user.id as string) || false;
     const isRequestPending = currentUser?.sentRequests?.includes(user.id as string) || false;
+    const hasReceivedRequest = currentUser?.friendRequests?.includes(user.id as string) || false;
     return (
       <UserCard key={user.id} user={user}>
-        <Button 
-          size="sm" 
-          onClick={() => sendReq.mutate(user.id as string)} 
-          disabled={sendReq.isPending || isRequestPending}
-          variant={isRequestPending ? "outline" : "default"}
-        >
-          <UserPlus className="w-4 h-4 mr-2" /> {isRequestPending ? "Request Sent" : "Add Friend"}
-        </Button>
+        {isFriend ? (
+          <Button size="sm" variant="outline" disabled>
+            <UserCheck className="w-4 h-4 mr-2" /> Friends
+          </Button>
+        ) : hasReceivedRequest ? (
+          <Button size="sm" onClick={() => sendReq.mutate(user.id as string)} disabled={sendReq.isPending}>
+            <UserCheck className="w-4 h-4 mr-2" /> Accept
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            onClick={() => sendReq.mutate(user.id as string)}
+            disabled={sendReq.isPending || isRequestPending}
+            variant={isRequestPending ? "outline" : "default"}
+          >
+            <UserPlus className="w-4 h-4 mr-2" /> {isRequestPending ? "Request Sent" : "Add Friend"}
+          </Button>
+        )}
       </UserCard>
     );
-  });
+  };
+
+  return (
+    <>
+      <div className="col-span-full mb-2">
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search everyone on NX-Connect..."
+            value={query}
+            onChange={e => handleSearch(e.target.value)}
+            className="w-full bg-card border border-border rounded-2xl pl-10 pr-10 py-3 text-sm outline-none focus:border-primary transition-colors"
+            data-testid="input-discover-search"
+          />
+          {query && (
+            <button
+              onClick={() => { setQuery(""); setSearchResults(null); }}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              data-testid="button-clear-discover-search"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        {isSearchMode && (
+          <p className="text-xs text-muted-foreground mt-2 ml-1">
+            {searching ? "Searching..." : `${displayUsers.length} result${displayUsers.length !== 1 ? "s" : ""} for "${query}"`}
+          </p>
+        )}
+      </div>
+
+      {!isSearchMode && isLoading && <div className="col-span-full text-center py-10">Loading suggestions...</div>}
+      {!isSearchMode && !isLoading && displayUsers.length === 0 && (
+        <div className="col-span-full text-center py-10 text-muted-foreground">No new people to discover right now. Try searching above!</div>
+      )}
+      {searching && <div className="col-span-full text-center py-10 text-muted-foreground text-sm">Searching...</div>}
+      {!searching && displayUsers.map(renderUser)}
+    </>
+  );
 }
 
 function FriendsListTab() {

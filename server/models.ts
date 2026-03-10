@@ -54,7 +54,7 @@ const conversationSchema = new mongoose.Schema({
   groupName: { type: String, default: '' },
   groupPhoto: { type: String, default: '' },
   adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  inviteToken: { type: String, default: null, unique: true, sparse: true },
+  inviteToken: { type: String, unique: true, sparse: true },
 }, { timestamps: true });
 
 const notificationSchema = new mongoose.Schema({

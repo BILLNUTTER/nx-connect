@@ -31,6 +31,13 @@ export async function registerRoutes(
     console.log('[seed] NX-Connect system account created.');
   }
 
+  // Migration: remove null inviteToken from DM conversations so sparse unique index works
+  try {
+    await Conversation.updateMany({ inviteToken: null }, { $unset: { inviteToken: "" } });
+  } catch (e) {
+    console.warn('[migration] inviteToken cleanup skipped:', e);
+  }
+
   // Auth Routes
   app.post(api.auth.signup.path, async (req: Request, res: Response) => {
     try {
@@ -559,19 +566,32 @@ export async function registerRoutes(
   });
 
   app.post(api.chats.getOrCreate.path, authenticate, async (req: Request, res: Response) => {
-    const userId = (req as any).userId;
-    const otherId = req.params.userId;
+    try {
+      const userId = (req as any).userId;
+      const otherId = req.params.userId;
 
-    let convo = await Conversation.findOne({
-      participants: { $all: [userId, otherId], $size: 2 }
-    });
+      if (!mongoose.Types.ObjectId.isValid(otherId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
 
-    if (!convo) {
-      convo = new Conversation({ participants: [userId, otherId] });
-      await convo.save();
+      const otherUser = await User.findById(otherId);
+      if (!otherUser) return res.status(404).json({ message: "User not found" });
+
+      let convo = await Conversation.findOne({
+        participants: { $all: [userId, otherId], $size: 2 },
+        isGroup: { $ne: true }
+      });
+
+      if (!convo) {
+        convo = new Conversation({ participants: [userId, otherId] });
+        await convo.save();
+      }
+
+      res.status(200).json(convo.toJSON());
+    } catch (err) {
+      console.error("getOrCreate error:", err);
+      res.status(500).json({ message: "Failed to start conversation" });
     }
-
-    res.status(200).json(convo.toJSON());
   });
 
   app.get(api.chats.messages.path, authenticate, async (req: Request, res: Response) => {
