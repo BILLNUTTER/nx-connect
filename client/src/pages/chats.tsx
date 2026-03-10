@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation } from "@/hooks/use-chats";
+import { useQueryClient } from "@tanstack/react-query";
+import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,6 +48,7 @@ export default function ChatsPage() {
   const search = useSearch();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const params = new URLSearchParams(search);
   const defaultConvId = params.get("conv");
   const joinToken = params.get("join");
@@ -64,6 +66,24 @@ export default function ChatsPage() {
   useEffect(() => {
     if (joinToken) setShowJoinDialog(true);
   }, [joinToken]);
+
+  // Pre-fetch messages for every conversation as soon as the list loads
+  // so tapping any conversation shows messages instantly from cache
+  useEffect(() => {
+    if (!conversations?.length) return;
+    conversations.forEach((conv: any) => {
+      if (!conv.id) return;
+      queryClient.prefetchQuery({
+        queryKey: [api.chats.messages.path, conv.id],
+        queryFn: async () => {
+          const url = buildUrl(api.chats.messages.path, { conversationId: conv.id });
+          const data = await apiFetch(url);
+          return parseWithLogging(api.chats.messages.responses[200], data, "chats.messages");
+        },
+        staleTime: 30 * 1000,
+      });
+    });
+  }, [conversations]);
 
   const handleJoinGroup = async () => {
     if (!joinToken) return;
@@ -233,7 +253,7 @@ function ActiveChat({
   currentUserId?: string;
   onBack: () => void;
 }) {
-  const { data: messages } = useMessages(conversationId);
+  const { data: messages, isLoading: messagesLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage();
   const [content, setContent] = useState("");
   const [showSettings, setShowSettings] = useState(false);
@@ -345,7 +365,16 @@ function ActiveChat({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages?.length === 0 && (
+        {messagesLoading && !messages && (
+          <div className="space-y-4">
+            {[56, 40, 72, 32, 64].map((w, i) => (
+              <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
+                <div className={`h-9 rounded-2xl animate-pulse bg-muted`} style={{ width: `${w}%`, maxWidth: "72%" }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!messagesLoading && messages?.length === 0 && (
           <div className="text-center text-muted-foreground py-10">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">{isGroup ? "Group created! Say hello." : "Say hello! Start the conversation."}</p>

@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { apiFetch, parseWithLogging } from "@/lib/api";
 
+export { api, buildUrl, apiFetch, parseWithLogging };
+
 export function useConversations() {
   return useQuery({
     queryKey: [api.chats.conversations.path],
@@ -10,7 +12,8 @@ export function useConversations() {
       return parseWithLogging(api.chats.conversations.responses[200], data, "chats.conversations");
     },
     refetchInterval: 4000,
-    staleTime: 1000,
+    staleTime: 2000,
+    gcTime: 15 * 60 * 1000,
   });
 }
 
@@ -39,7 +42,9 @@ export function useMessages(conversationId: string | null) {
     },
     enabled: !!conversationId,
     refetchInterval: 1500,
-    staleTime: 500,
+    staleTime: 30 * 1000,
+    gcTime: 15 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 }
 
