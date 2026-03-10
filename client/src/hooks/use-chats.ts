@@ -9,6 +9,8 @@ export function useConversations() {
       const data = await apiFetch(api.chats.conversations.path);
       return parseWithLogging(api.chats.conversations.responses[200], data, "chats.conversations");
     },
+    refetchInterval: 4000,
+    staleTime: 1000,
   });
 }
 
@@ -36,14 +38,15 @@ export function useMessages(conversationId: string | null) {
       return parseWithLogging(api.chats.messages.responses[200], data, "chats.messages");
     },
     enabled: !!conversationId,
-    refetchInterval: 3000, // simple polling for chat
+    refetchInterval: 1500,
+    staleTime: 500,
   });
 }
 
 export function useSendMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ conversationId, content, replyTo }: { conversationId: string; content: string; replyTo?: string }) => {
+    mutationFn: async ({ conversationId, content, replyTo }: { conversationId: string; content: string; replyTo?: string; currentUserId?: string }) => {
       const url = buildUrl(api.chats.sendMessage.path, { conversationId });
       const data = await apiFetch(url, {
         method: "POST",
@@ -51,7 +54,30 @@ export function useSendMessage() {
       });
       return parseWithLogging(api.chats.sendMessage.responses[201], data, "chats.sendMessage");
     },
-    onSuccess: (_, variables) => {
+    onMutate: async ({ conversationId, content, currentUserId }) => {
+      await queryClient.cancelQueries({ queryKey: [api.chats.messages.path, conversationId] });
+      const prev = queryClient.getQueryData<any[]>([api.chats.messages.path, conversationId]);
+      const optimistic = {
+        id: `optimistic-${Date.now()}`,
+        conversationId,
+        senderId: currentUserId || '',
+        content,
+        readBy: [],
+        createdAt: new Date().toISOString(),
+        pending: true,
+      };
+      queryClient.setQueryData(
+        [api.chats.messages.path, conversationId],
+        (old: any[]) => [...(old || []), optimistic]
+      );
+      return { prev, conversationId };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev !== undefined) {
+        queryClient.setQueryData([api.chats.messages.path, context.conversationId], context.prev);
+      }
+    },
+    onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.chats.messages.path, variables.conversationId] });
       queryClient.invalidateQueries({ queryKey: [api.chats.conversations.path] });
     },

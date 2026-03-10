@@ -38,6 +38,21 @@ export async function registerRoutes(
     console.warn('[migration] inviteToken cleanup skipped:', e);
   }
 
+  // Cleanup: remove test/e2e accounts that were created during development
+  try {
+    const testUsernames = ['e2etester99', 'e2etester', 'testuser', 'test_user'];
+    const testEmailPattern = /^e2e@|^test@/i;
+    const deleted = await User.deleteMany({
+      $or: [
+        { username: { $in: testUsernames } },
+        { email: { $regex: '^e2e@|^test@', $options: 'i' } },
+      ],
+    });
+    if (deleted.deletedCount > 0) console.log(`[cleanup] Removed ${deleted.deletedCount} test account(s).`);
+  } catch (e) {
+    console.warn('[cleanup] Test user removal skipped:', e);
+  }
+
   // Auth Routes
   app.post(api.auth.signup.path, async (req: Request, res: Response) => {
     try {

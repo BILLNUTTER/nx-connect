@@ -4,7 +4,7 @@ import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, us
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, isOnline, LinkedText } from "@/components/ui/shared";
-import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft } from "lucide-react";
+import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -255,12 +255,13 @@ function ActiveChat({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async (e?: React.FormEvent) => {
+  const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!content.trim()) return;
-    await sendMessage.mutateAsync({ conversationId, content, replyTo: replyTo?.id });
+    const trimmed = content.trim();
+    if (!trimmed) return;
     setContent("");
     setReplyTo(null);
+    sendMessage.mutate({ conversationId, content: trimmed, replyTo: replyTo?.id, currentUserId });
   };
 
   const handleTouchStart = (e: React.TouchEvent, msg: any) => {
@@ -411,11 +412,13 @@ function ActiveChat({
                     {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ""}
                   </span>
                   {isMe && !isGroup && (
-                    msg.readBy?.includes(otherUser?.id || otherUser?._id)
-                      ? <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                      : otherUser?.lastSeen && new Date(otherUser.lastSeen) > new Date(msg.createdAt)
-                        ? <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                        : <Check className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                    msg.pending
+                      ? <Clock className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                      : msg.readBy?.includes(otherUser?.id || otherUser?._id)
+                        ? <CheckCheck className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        : otherUser?.lastSeen && new Date(otherUser.lastSeen) > new Date(msg.createdAt)
+                          ? <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                          : <Check className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
                   )}
                 </div>
               </div>
