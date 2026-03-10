@@ -82,16 +82,16 @@ export async function registerRoutes(
       const user = await User.findOne({ username: input.username });
       
       if (!user || user.username === 'nx-connect') {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "No account found with that username." });
       }
 
       if (user.status === "restricted") {
-        return res.status(401).json({ message: "Account is restricted" });
+        return res.status(401).json({ message: "Account suspended. Please contact NX-Connect support on WhatsApp: 0713881613 or 0758891491 for further guidance." });
       }
 
       const isValid = await bcrypt.compare(input.password, user.password);
       if (!isValid) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        return res.status(401).json({ message: "Incorrect password. Please try again." });
       }
 
       const token = generateToken(user.id);
@@ -921,8 +921,18 @@ export async function registerRoutes(
       }
       const post = await Post.findById(req.params.id);
       if (!post) return res.status(404).json({ message: "Post not found" });
+      const reason = req.body?.reason || "Your post was removed for violating NX-Connect community guidelines.";
+      const authorId = post.authorId?.toString();
       await Post.deleteOne({ _id: post._id });
       await Comment.deleteMany({ postId: post._id });
+      // Notify the post author
+      if (authorId && mongoose.Types.ObjectId.isValid(authorId)) {
+        await new Notification({
+          recipientId: authorId,
+          type: 'system',
+          content: `⚠️ Your post was removed by NX-Connect admin: "${reason}". If you believe this was a mistake, contact support on WhatsApp: 0713881613.`,
+        }).save();
+      }
       res.status(200).json({ message: "Post deleted" });
     } catch (err) {
       console.error("Admin delete post error:", err);

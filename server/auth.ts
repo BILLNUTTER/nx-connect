@@ -27,7 +27,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
 
 export async function adminOnly(req: Request, res: Response, next: NextFunction) {
   const adminKey = req.query.adminKey || req.headers['x-admin-key'];
-  if (adminKey && (adminKey === process.env.ADMIN_KEY || adminKey === "nutterx-admin-123")) {
+  if (adminKey && process.env.ADMIN_KEY && adminKey === process.env.ADMIN_KEY) {
     return next();
   }
   const authHeader = req.headers.authorization;

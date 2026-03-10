@@ -132,9 +132,9 @@ export function useAdminActions() {
   });
 
   const adminDeletePost = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const url = buildUrl(api.admin.deletePost.path, { id });
-      await apiFetch(url, { method: "DELETE" });
+      await apiFetch(url, { method: "DELETE", body: JSON.stringify({ reason }), headers: { "Content-Type": "application/json" } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });

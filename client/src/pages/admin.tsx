@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions, useAdminPosts, useAdminProfile } from "@/hooks/use-admin";
-import { setAdminKey as persistAdminKey } from "@/lib/api";
+import { setAdminKey as persistAdminKey, apiFetch } from "@/lib/api";
 import { useUserPosts } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Input, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock, Camera } from "lucide-react";
+import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock, Camera, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Post } from "@shared/schema";
 
@@ -99,10 +99,29 @@ function AdminProfileSection() {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [adminKey, setAdminKey] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(user?.isAdmin || false);
+  const [authLoading, setAuthLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<"dashboard" | "feed">("dashboard");
+
+  const handleAuthenticate = async () => {
+    if (!adminKey.trim()) return;
+    if (user?.isAdmin) { setIsAuthenticated(true); return; }
+    setAuthLoading(true);
+    try {
+      // Verify key by attempting a protected endpoint
+      persistAdminKey(adminKey.trim());
+      await apiFetch("/api/admin/stats");
+      setIsAuthenticated(true);
+    } catch {
+      persistAdminKey("");
+      toast({ title: "Invalid admin key", description: "The key you entered is incorrect.", variant: "destructive" });
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -115,22 +134,17 @@ export default function AdminDashboard() {
             placeholder="Enter Admin Key..."
             value={adminKey}
             onChange={e => setAdminKey(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleAuthenticate()}
             className="mb-4"
             data-testid="input-admin-key"
           />
           <Button
             className="w-full"
             data-testid="button-admin-login"
-            onClick={() => {
-              if (adminKey === "admin123" || adminKey === "nutterx-admin-123" || user?.isAdmin) {
-                persistAdminKey("nutterx-admin-123");
-                setIsAuthenticated(true);
-              } else {
-                alert("Invalid Key");
-              }
-            }}
+            disabled={authLoading || !adminKey.trim()}
+            onClick={handleAuthenticate}
           >
-            Authenticate
+            {authLoading ? "Verifying..." : "Authenticate"}
           </Button>
         </Card>
       </div>
@@ -490,11 +504,20 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
     toast({ title: "Account activated" });
   };
 
-  const handleDeletePost = async (postId: string) => {
-    if (!confirm("Delete this post?")) return;
+  const [deleteModal, setDeleteModal] = useState<{ postId: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+
+  const handleDeletePost = (postId: string) => {
+    setDeleteReason("");
+    setDeleteModal({ postId });
+  };
+
+  const confirmDeletePost = async () => {
+    if (!deleteModal) return;
     try {
-      await adminDeletePost.mutateAsync(postId);
-      toast({ title: "Post deleted" });
+      await adminDeletePost.mutateAsync({ id: deleteModal.postId, reason: deleteReason.trim() || "Violated community guidelines" });
+      toast({ title: "Post deleted", description: "User has been notified." });
+      setDeleteModal(null);
     } catch {
       toast({ title: "Delete failed", description: "Could not delete the post. Try again.", variant: "destructive" });
     }
@@ -590,6 +613,33 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
       </div>
 
       <UserPostsList userId={user.id!} userName={user.name || "User"} onDeletePost={handleDeletePost} />
+
+      {deleteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setDeleteModal(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl z-10" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setDeleteModal(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground" data-testid="button-close-delete-modal">
+              <X className="w-5 h-5" />
+            </button>
+            <Trash2 className="w-10 h-10 text-destructive mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-center mb-1">Delete Post</h3>
+            <p className="text-sm text-muted-foreground text-center mb-4">The user will receive a notification with the reason below.</p>
+            <textarea
+              className="w-full bg-secondary border border-border rounded-xl p-3 text-foreground outline-none focus:border-primary resize-none h-24 text-sm mb-4"
+              placeholder="Reason for removal (e.g. Inappropriate content, spam, harassment...)"
+              value={deleteReason}
+              onChange={e => setDeleteReason(e.target.value)}
+              data-testid="input-delete-reason"
+            />
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteModal(null)}>Cancel</Button>
+              <Button variant="destructive" className="flex-1" onClick={confirmDeletePost} disabled={adminDeletePost.isPending} data-testid="button-confirm-delete-post">
+                {adminDeletePost.isPending ? "Deleting..." : "Delete & Notify"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -643,12 +693,20 @@ function AdminFeedView() {
   const { data: posts, isLoading } = useAdminPosts();
   const { adminDeletePost } = useAdminActions();
   const { toast } = useToast();
+  const [deleteModal, setDeleteModal] = useState<{ postId: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
-  const handleDelete = async (postId: string) => {
-    if (!confirm("Delete this post?")) return;
+  const handleDelete = (postId: string) => {
+    setDeleteReason("");
+    setDeleteModal({ postId });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteModal) return;
     try {
-      await adminDeletePost.mutateAsync(postId);
-      toast({ title: "Post deleted" });
+      await adminDeletePost.mutateAsync({ id: deleteModal.postId, reason: deleteReason.trim() || "Violated community guidelines" });
+      toast({ title: "Post deleted", description: "User has been notified." });
+      setDeleteModal(null);
     } catch {
       toast({ title: "Delete failed", description: "Could not delete the post. Try again.", variant: "destructive" });
     }
@@ -692,6 +750,33 @@ function AdminFeedView() {
           )}
         </Card>
       ))}
+
+      {deleteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setDeleteModal(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl z-10" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setDeleteModal(null)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground" data-testid="button-close-feed-delete-modal">
+              <X className="w-5 h-5" />
+            </button>
+            <Trash2 className="w-10 h-10 text-destructive mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-center mb-1">Delete Post</h3>
+            <p className="text-sm text-muted-foreground text-center mb-4">The user will receive a notification with the reason below.</p>
+            <textarea
+              className="w-full bg-secondary border border-border rounded-xl p-3 text-foreground outline-none focus:border-primary resize-none h-24 text-sm mb-4"
+              placeholder="Reason for removal (e.g. Inappropriate content, spam, harassment...)"
+              value={deleteReason}
+              onChange={e => setDeleteReason(e.target.value)}
+              data-testid="input-feed-delete-reason"
+            />
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteModal(null)}>Cancel</Button>
+              <Button variant="destructive" className="flex-1" onClick={confirmDelete} disabled={adminDeletePost.isPending} data-testid="button-confirm-feed-delete-post">
+                {adminDeletePost.isPending ? "Deleting..." : "Delete & Notify"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
