@@ -3,13 +3,14 @@ services:
     name: nx-connect
     env: node
     plan: free
+    rootDir: .
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: MONGO_URI
+      - key: SUPABASE_DATABASE_URL
         sync: false
       - key: JWT_SECRET
         sync: false
