@@ -142,3 +142,11 @@ export function useSetDisappearingMessages() {
     },
   });
 }
+
+export function useMarkVoiceNoteListened() {
+  return useMutation({
+    mutationFn: async ({ conversationId, messageId }: { conversationId: string; messageId: string }) => {
+      await apiFetch(`/api/chats/${conversationId}/messages/${messageId}/listened`, { method: "PATCH" });
+    },
+  });
+}

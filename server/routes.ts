@@ -741,13 +741,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const audioUrl = req.body.audioUrl || null;
     const msgContent = req.body.content || (audioUrl ? "🎙 Voice note" : "");
+    // Voice notes expire only when listened to — override disappearing messages setting
+    const finalExpiresAt = audioUrl ? null : msgExpiresAt;
     const [msg] = await db.insert(messages).values({
       conversationId: convId,
       senderId: userId,
       content: msgContent,
       audioUrl,
       replyTo: req.body.replyTo || null,
-      expiresAt: msgExpiresAt,
+      expiresAt: finalExpiresAt,
     }).returning();
     if (convo) {
       const others = convo.participants.filter(p => p !== userId);
@@ -797,6 +799,23 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       .where(eq(conversations.id, conversationId))
       .returning();
     res.status(200).json(updated);
+  });
+
+  // Mark a voice note as listened — sets expiresAt to now+24h (once only)
+  app.patch('/api/chats/:conversationId/messages/:messageId/listened', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { conversationId, messageId } = req.params;
+    const [convo] = await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+    if (!convo || !convo.participants.includes(userId)) return res.status(403).json({ message: "Forbidden" });
+    const [msg] = await db.select().from(messages)
+      .where(and(eq(messages.id, messageId), eq(messages.conversationId, conversationId)))
+      .limit(1);
+    if (!msg || !msg.audioUrl) return res.status(404).json({ message: "Voice note not found" });
+    // Only set expiry if not already expiring within 24h
+    const in24h = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (msg.expiresAt && msg.expiresAt <= in24h) return res.json({ ok: true });
+    await db.update(messages).set({ expiresAt: in24h }).where(eq(messages.id, messageId));
+    res.json({ ok: true });
   });
 
   // ─── Groups ──────────────────────────────────────────────────────────────────

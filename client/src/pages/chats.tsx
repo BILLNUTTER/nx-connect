@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, useEditMessage, useDeleteMessage, useSetDisappearingMessages, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
+import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, useEditMessage, useDeleteMessage, useSetDisappearingMessages, useMarkVoiceNoteListened, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
@@ -31,11 +31,22 @@ async function compressImage(file: File, maxWidth = 400, quality = 0.82): Promis
   });
 }
 
-function VoiceNotePlayer({ audioUrl, isMe }: { audioUrl: string; isMe: boolean }) {
+function VoiceNotePlayer({
+  audioUrl,
+  isMe,
+  onFirstPlay,
+  previewMode = false,
+}: {
+  audioUrl: string;
+  isMe: boolean;
+  onFirstPlay?: () => void;
+  previewMode?: boolean;
+}) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const triggeredRef = useRef(false);
 
   const toggle = () => {
     if (!audioRef.current) return;
@@ -45,7 +56,18 @@ function VoiceNotePlayer({ audioUrl, isMe }: { audioUrl: string; isMe: boolean }
     } else {
       audioRef.current.play();
       setPlaying(true);
+      if (!triggeredRef.current && onFirstPlay) {
+        triggeredRef.current = true;
+        onFirstPlay();
+      }
     }
+  };
+
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = (e.clientX - rect.left) / rect.width;
+    audioRef.current.currentTime = ratio * duration;
   };
 
   const fmt = (t: number) => {
@@ -71,14 +93,22 @@ function VoiceNotePlayer({ audioUrl, isMe }: { audioUrl: string; isMe: boolean }
         onClick={toggle}
         data-testid="button-play-voice-note"
         className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-          isMe ? "bg-white/20 hover:bg-white/35 text-white" : "bg-primary/15 hover:bg-primary/25 text-primary"
+          previewMode
+            ? "bg-primary/15 hover:bg-primary/25 text-primary"
+            : isMe
+            ? "bg-white/20 hover:bg-white/35 text-white"
+            : "bg-primary/15 hover:bg-primary/25 text-primary"
         }`}
       >
         {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
       </button>
 
       <div className="flex-1 flex flex-col gap-1.5">
-        <div className="flex items-end gap-px h-5">
+        <div
+          className="flex items-end gap-px h-5 cursor-pointer"
+          onClick={handleSeek}
+          title="Seek"
+        >
           {Array.from({ length: bars }).map((_, i) => {
             const seed = ((i * 7 + 3) % 11) / 11;
             const h = 30 + seed * 70;
@@ -88,16 +118,25 @@ function VoiceNotePlayer({ audioUrl, isMe }: { audioUrl: string; isMe: boolean }
                 key={i}
                 className={`flex-1 rounded-full transition-colors ${
                   filled
-                    ? isMe ? "bg-white" : "bg-primary"
-                    : isMe ? "bg-white/35" : "bg-primary/25"
+                    ? previewMode
+                      ? "bg-primary"
+                      : isMe
+                      ? "bg-white"
+                      : "bg-primary"
+                    : previewMode
+                    ? "bg-primary/25"
+                    : isMe
+                    ? "bg-white/35"
+                    : "bg-primary/25"
                 }`}
                 style={{ height: `${h}%` }}
               />
             );
           })}
         </div>
-        <div className={`text-[10px] font-medium ${isMe ? "text-white/70" : "text-muted-foreground"}`}>
-          {playing ? fmt(currentTime) : fmt(duration || 0)}
+        <div className={`text-[10px] font-medium ${previewMode ? "text-muted-foreground" : isMe ? "text-white/70" : "text-muted-foreground"}`}>
+          {fmt(playing ? currentTime : (duration || 0))}
+          {!previewMode && <span className="ml-1 opacity-60">· tap to play</span>}
         </div>
       </div>
     </div>
@@ -337,6 +376,7 @@ function ActiveChat({
   const sendMessage = useSendMessage();
   const editMessage = useEditMessage();
   const deleteMessage = useDeleteMessage();
+  const markListened = useMarkVoiceNoteListened();
   const [content, setContent] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [showDMSettings, setShowDMSettings] = useState(false);
@@ -352,6 +392,7 @@ function ActiveChat({
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingReady, setRecordingReady] = useState(false);
+  const [recordedAudio, setRecordedAudio] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -378,7 +419,7 @@ function ActiveChat({
   }, [messages, conversationId]);
 
   const startRecording = async () => {
-    if (recording) return;
+    if (recording || recordedAudio) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -393,10 +434,11 @@ function ActiveChat({
       mr.start(100);
       setRecording(true);
       setRecordingReady(false);
+      setRecordedAudio(null);
       setRecordingTime(0);
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime((t) => {
-          if (t >= 119) { stopRecordingAndSend(); return t; }
+          if (t >= 29) { stopRecording(); return t; }
           return t + 1;
         });
       }, 1000);
@@ -408,16 +450,18 @@ function ActiveChat({
   const cancelRecording = () => {
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+      try { mediaRecorderRef.current.stop(); } catch {}
+      try { mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop()); } catch {}
     }
     setRecording(false);
     setRecordingTime(0);
     setRecordingReady(false);
+    setRecordedAudio(null);
     audioChunksRef.current = [];
   };
 
-  const stopRecordingAndSend = () => {
+  // Stop recording → enter preview mode
+  const stopRecording = () => {
     if (!mediaRecorderRef.current || !recording) return;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     setRecording(false);
@@ -425,16 +469,21 @@ function ActiveChat({
     mediaRecorderRef.current.onstop = () => {
       const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
       const blob = new Blob(audioChunksRef.current, { type: mimeType });
-      mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      try { mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop()); } catch {}
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setReplyTo(null);
-        sendMessage.mutate({ conversationId, audioUrl: base64, currentUserId });
-      };
+      reader.onloadend = () => setRecordedAudio(reader.result as string);
       reader.readAsDataURL(blob);
     };
-    mediaRecorderRef.current.stop();
+    try { mediaRecorderRef.current.stop(); } catch {}
+  };
+
+  // Send the previewed audio
+  const sendRecordedAudio = () => {
+    if (!recordedAudio) return;
+    const audio = recordedAudio;
+    setRecordedAudio(null);
+    setReplyTo(null);
+    sendMessage.mutate({ conversationId, audioUrl: audio, currentUserId });
   };
 
   const handleSend = (e?: React.FormEvent) => {
@@ -631,7 +680,15 @@ function ActiveChat({
                       <button onClick={() => { if (editMsgContent.trim()) editMessage.mutateAsync({ conversationId, messageId: msg.id, content: editMsgContent.trim() }).then(() => setEditingMsgId(null)); }} disabled={editMessage.isPending} className="ml-0.5 opacity-70 hover:opacity-100"><Check className="w-3.5 h-3.5" /></button>
                     </div>
                   ) : msg.audioUrl ? (
-                    <VoiceNotePlayer audioUrl={msg.audioUrl} isMe={isMe} />
+                    <VoiceNotePlayer
+                      audioUrl={msg.audioUrl}
+                      isMe={isMe}
+                      onFirstPlay={
+                        msg.id && !msg.id.startsWith("optimistic-")
+                          ? () => markListened.mutate({ conversationId, messageId: msg.id })
+                          : undefined
+                      }
+                    />
                   ) : (
                     <LinkedText
                       text={msg.content}
@@ -700,7 +757,8 @@ function ActiveChat({
             </div>
           )}
           <div className="p-4">
-            {recording ? (
+            {/* ── State 1: Recording ── */}
+            {recording && (
               <div className="flex items-center gap-3 bg-secondary rounded-full px-4 py-3">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
@@ -712,7 +770,11 @@ function ActiveChat({
                       );
                     })}
                   </div>
-                  <span className="text-sm font-mono font-bold text-primary shrink-0">{fmtRecTime(recordingTime)}</span>
+                  <span className="text-sm font-mono font-bold text-primary shrink-0">{fmtRecTime(recordingTime)}/0:30</span>
+                </div>
+                {/* progress bar */}
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-border/30 rounded-full overflow-hidden pointer-events-none">
+                  <div className="h-full bg-primary/50 transition-all duration-1000" style={{ width: `${(recordingTime / 30) * 100}%` }} />
                 </div>
                 <button
                   type="button"
@@ -724,14 +786,46 @@ function ActiveChat({
                 </button>
                 <button
                   type="button"
-                  onClick={stopRecordingAndSend}
+                  onClick={stopRecording}
                   className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md shrink-0"
+                  data-testid="button-stop-recording"
+                  title="Stop & preview"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* ── State 2: Preview recorded audio ── */}
+            {!recording && recordedAudio && (
+              <div className="flex items-center gap-3 bg-secondary rounded-2xl px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <VoiceNotePlayer audioUrl={recordedAudio} isMe={false} previewMode />
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelRecording}
+                  className="w-9 h-9 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors shrink-0"
+                  data-testid="button-discard-voice-note"
+                  title="Discard"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={sendRecordedAudio}
+                  disabled={sendMessage.isPending}
+                  className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 disabled:opacity-50 transition-colors shadow-md shrink-0"
                   data-testid="button-send-voice-note"
+                  title="Send"
                 >
                   <Send className="w-4 h-4 ml-0.5" />
                 </button>
               </div>
-            ) : (
+            )}
+
+            {/* ── State 3: Normal text input ── */}
+            {!recording && !recordedAudio && (
               <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
                 <input
                   type="text"
@@ -756,7 +850,7 @@ function ActiveChat({
                     onClick={startRecording}
                     className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-colors shrink-0"
                     data-testid="button-start-recording"
-                    title="Hold to record voice note"
+                    title="Record voice note"
                   >
                     <Mic className="w-4 h-4" />
                   </button>
