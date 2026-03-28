@@ -114,7 +114,7 @@ export default function LandingPage() {
               data-testid="button-download-app"
             >
               <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black text-xs mr-2">NX</div>
-              {installed ? "App Installed ✓" : "Add to Home Screen"}
+              {installed ? "App Installed ✓" : "Download App"}
             </Button>
           </div>
 
@@ -218,7 +218,7 @@ export default function LandingPage() {
               </Link>
               <Button variant="outline" className="text-base px-10 py-5 rounded-2xl" onClick={handleInstall} disabled={installed || !deferredPrompt} data-testid="button-download-cta">
                 <Download className="w-4 h-4 mr-2" />
-                {installed ? "App Installed ✓" : "Add to Home Screen"}
+                {installed ? "App Installed ✓" : "Download App"}
               </Button>
             </div>
           </div>
