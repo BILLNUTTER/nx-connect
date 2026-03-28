@@ -296,8 +296,9 @@ export default function PostPage() {
                     <div className="flex-1 min-w-0">
                       <div className="bg-secondary/50 rounded-2xl px-4 py-3 relative group/comment">
                         <div className="flex items-baseline gap-2 mb-1">
-                          <button onClick={() => cAuthorId && setLocation(`/profile/${cAuthorId}`)} className="font-bold text-sm hover:underline text-left">
+                          <button onClick={() => cAuthorId && setLocation(`/profile/${cAuthorId}`)} className="font-bold text-sm hover:underline text-left inline-flex items-center gap-1">
                             {c.author?.name}
+                            {(c.author as any)?.isVerified && <VerifiedBadge size="xs" />}
                           </button>
                           <span className="text-xs text-muted-foreground"><TimeAgo date={c.createdAt!} /></span>
                           {c.updatedAt && c.createdAt && new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 5000 && (
@@ -364,8 +365,9 @@ export default function PostPage() {
                             <div className="flex-1 min-w-0">
                               <div className="bg-secondary/30 rounded-2xl px-3 py-2">
                                 <div className="flex items-baseline gap-2 mb-0.5">
-                                  <button onClick={() => rAuthorId && setLocation(`/profile/${rAuthorId}`)} className="font-bold text-xs hover:underline text-left">
+                                  <button onClick={() => rAuthorId && setLocation(`/profile/${rAuthorId}`)} className="font-bold text-xs hover:underline text-left inline-flex items-center gap-1">
                                     {r.author?.name}
+                                    {(r.author as any)?.isVerified && <VerifiedBadge size="xs" />}
                                   </button>
                                   <span className="text-[10px] text-muted-foreground"><TimeAgo date={r.createdAt!} /></span>
                                 </div>

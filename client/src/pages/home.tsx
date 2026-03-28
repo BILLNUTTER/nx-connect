@@ -1028,10 +1028,11 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
             <div className="flex-1 bg-secondary/50 rounded-2xl px-3 py-2">
               <button
                 onClick={() => setLocation(`/profile/${(post as any).latestComment.author?.id}`)}
-                className="text-xs font-semibold text-foreground hover:underline"
+                className="text-xs font-semibold text-foreground hover:underline inline-flex items-center gap-1"
                 data-testid={`button-comment-author-${post.id}`}
               >
                 {(post as any).latestComment.author?.name}
+                {(post as any).latestComment.author?.isVerified && <VerifiedBadge size="xs" />}
               </button>
               <p className="text-xs text-foreground/90 mt-0.5 line-clamp-2">
                 {(post as any).latestComment.content}

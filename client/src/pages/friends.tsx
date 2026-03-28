@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
-import { Card, Button, Avatar, isOnline } from "@/components/ui/shared";
+import { Card, Button, Avatar, isOnline, VerifiedBadge } from "@/components/ui/shared";
 import { UserPlus, UserCheck, UserMinus, MessageSquare, Search, X, Link2, Users } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import { apiFetch } from "@/lib/api";
@@ -250,7 +250,10 @@ function UserCard({ user, children }: { user: User, children: React.ReactNode })
         className="flex-1 cursor-pointer"
         onClick={() => setLocation(`/profile/${user.id}`)}
       >
-        <h3 className="font-bold text-lg hover:text-primary transition-colors">{displayName}</h3>
+        <h3 className="font-bold text-lg hover:text-primary transition-colors flex items-center gap-1.5">
+          {displayName}
+          {(user as any).isVerified && <VerifiedBadge size="sm" />}
+        </h3>
         <p className="text-muted-foreground text-sm">@{user.username}</p>
       </div>
       <div>{children}</div>

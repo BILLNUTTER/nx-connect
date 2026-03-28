@@ -724,6 +724,7 @@ function GroupSettingsPanel({
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-sm truncate flex items-center gap-1.5">
                         {p.name}
+                        {(p as any).isVerified && <VerifiedBadge size="xs" />}
                         {isMemberAdmin && <Shield className="w-3.5 h-3.5 text-primary shrink-0" />}
                         {isMe && <span className="text-xs text-muted-foreground font-normal">(you)</span>}
                       </div>
@@ -817,7 +818,10 @@ function NewDirectMessageModal({ onClose, onStartChat }: { onClose: () => void; 
             >
               <Avatar url={friend.profilePicture} name={friend.name || "U"} size="sm" online={isOnline(friend.lastSeen)} />
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate">{friend.name}</div>
+                <div className="font-semibold text-sm truncate flex items-center gap-1">
+                  {friend.name}
+                  {(friend as any).isVerified && <VerifiedBadge size="xs" />}
+                </div>
                 <div className="text-xs text-muted-foreground truncate">@{friend.username}</div>
               </div>
               <MessageSquare className="w-4 h-4 text-muted-foreground shrink-0" />
@@ -923,7 +927,10 @@ function CreateGroupModal({ onClose, onCreated }: { onClose: () => void; onCreat
                     >
                       <Avatar url={friend.profilePicture} name={friend.name || "U"} size="sm" />
                       <div className="flex-1 text-left min-w-0">
-                        <div className="font-semibold text-sm truncate">{friend.name}</div>
+                        <div className="font-semibold text-sm truncate flex items-center gap-1">
+                          {friend.name}
+                          {(friend as any).isVerified && <VerifiedBadge size="xs" />}
+                        </div>
                         <div className="text-xs text-muted-foreground">@{friend.username}</div>
                       </div>
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${selected ? "bg-primary border-primary" : "border-border"}`}>

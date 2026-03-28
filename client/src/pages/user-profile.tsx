@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { useUserProfile, useUserPosts, useSendFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
-import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
 import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare, EyeOff, Eye, Trash2 } from "lucide-react";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import type { Post } from "@shared/schema";
@@ -61,7 +61,10 @@ export default function UserProfilePage() {
               <Avatar url={profile.profilePicture} name={profile.name || "U"} size="xl" online={isOnline((profile as any).lastSeen)} />
             </div>
           </div>
-          <h1 className="text-3xl font-display font-bold" data-testid="text-profile-name">{profile.name}</h1>
+          <h1 className="text-3xl font-display font-bold flex items-center justify-center gap-2" data-testid="text-profile-name">
+            {profile.name}
+            {(profile as any).isVerified && <VerifiedBadge size="md" />}
+          </h1>
           <p className="text-muted-foreground mt-1">@{profile.username}</p>
 
         <div className="flex justify-center gap-8 mt-6 mb-6">
