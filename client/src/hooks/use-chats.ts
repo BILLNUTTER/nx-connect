@@ -12,8 +12,9 @@ export function useConversations() {
       return parseWithLogging(api.chats.conversations.responses[200], data, "chats.conversations");
     },
     refetchInterval: 4000,
-    staleTime: 2000,
+    staleTime: 4000,
     gcTime: 15 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -41,8 +42,8 @@ export function useMessages(conversationId: string | null) {
       return parseWithLogging(api.chats.messages.responses[200], data, "chats.messages");
     },
     enabled: !!conversationId,
-    refetchInterval: 1500,
-    staleTime: 30 * 1000,
+    refetchInterval: 2500,
+    staleTime: 2500,
     gcTime: 15 * 60 * 1000,
     placeholderData: (prev) => prev,
   });

@@ -146,7 +146,7 @@ export default function ChatsPage() {
                   <button
                     key={conv.id}
                     onClick={() => setActiveConvId(conv.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all text-left ${
+                    className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-colors text-left ${
                       isActive
                         ? "bg-primary text-white shadow-md shadow-primary/20"
                         : hasUnread
@@ -268,6 +268,8 @@ function ActiveChat({
   const [editMsgContent, setEditMsgContent] = useState("");
   const [msgMenuId, setMsgMenuId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const prevMsgCountRef = useRef(0);
+  const prevConvIdRef = useRef<string | null>(null);
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
 
@@ -280,8 +282,14 @@ function ActiveChat({
   const isGroupAdmin = isGroup && adminIdStr === currentUserId;
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const count = messages?.length ?? 0;
+    const convChanged = prevConvIdRef.current !== conversationId;
+    if (convChanged || count > prevMsgCountRef.current) {
+      prevMsgCountRef.current = count;
+      prevConvIdRef.current = conversationId;
+      endRef.current?.scrollIntoView({ behavior: convChanged ? "instant" : "smooth" });
+    }
+  }, [messages, conversationId]);
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
