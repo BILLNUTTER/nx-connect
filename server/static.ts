@@ -19,8 +19,9 @@ function injectOgTags(html: string, baseUrl: string, overrides: Record<string, s
       result = result.replace("</head>", `  <meta property="${prop}" content="${escaped}" />\n</head>`);
     }
   }
-  const imageAbsolute = `${baseUrl}/icon-512.png`;
+  const imageAbsolute = `${baseUrl}/og-image.png`;
   result = result.replace(/<meta property="og:image" content="[^"]*"\s*\/?>/, `<meta property="og:image" content="${imageAbsolute}" />`);
+  result = result.replace(/<meta name="twitter:image" content="[^"]*"\s*\/?>/, `<meta name="twitter:image" content="${imageAbsolute}" />`);
   return result;
 }
 
