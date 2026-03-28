@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, isOnline, VerifiedBadge } from "@/components/ui/shared";
@@ -59,11 +59,17 @@ function DiscoverTab() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState(window.location.origin);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    apiFetch("/api/app-url").then((data: any) => {
+      if (data?.url) setInviteUrl(data.url);
+    }).catch(() => {});
+  }, []);
+
   const handleCopyInvite = () => {
-    const link = window.location.origin;
-    navigator.clipboard.writeText(link).then(() => {
+    navigator.clipboard.writeText(inviteUrl).then(() => {
       toast({ title: "Link copied!", description: "Share it with friends to invite them to NX-Connect." });
     });
   };
@@ -164,7 +170,7 @@ function DiscoverTab() {
           <div className="w-full max-w-sm bg-secondary/60 rounded-2xl p-4 flex items-center gap-3 border border-border">
             <div className="flex-1 min-w-0">
               <p className="text-xs text-muted-foreground mb-0.5 font-medium">Invite link</p>
-              <p className="text-sm font-mono truncate text-foreground">{window.location.origin}</p>
+              <p className="text-sm font-mono truncate text-foreground">{inviteUrl}</p>
             </div>
             <Button
               onClick={handleCopyInvite}

@@ -462,6 +462,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const excludeIds = [userId, ...(me.friends || []), ...(me.friendRequests || []), ...(me.sentRequests || [])];
     const discovered = await db.select({
       id: users.id, name: users.name, username: users.username, profilePicture: users.profilePicture,
+      lastSeen: users.lastSeen, isVerified: users.isVerified,
     }).from(users).where(
       and(
         notInArray(users.id, excludeIds),
@@ -479,7 +480,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!me?.friends?.length) return res.status(200).json([]);
     const friendRows = await db.select({
       id: users.id, name: users.name, username: users.username,
-      profilePicture: users.profilePicture, lastSeen: users.lastSeen,
+      profilePicture: users.profilePicture, lastSeen: users.lastSeen, isVerified: users.isVerified,
     }).from(users).where(inArray(users.id, me.friends));
     res.status(200).json(friendRows);
   });
@@ -490,7 +491,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!me?.friendRequests?.length) return res.status(200).json([]);
     const requesters = await db.select({
       id: users.id, name: users.name, username: users.username,
-      profilePicture: users.profilePicture, lastSeen: users.lastSeen,
+      profilePicture: users.profilePicture, lastSeen: users.lastSeen, isVerified: users.isVerified,
     }).from(users).where(inArray(users.id, me.friendRequests));
     res.status(200).json(requesters);
   });
@@ -944,7 +945,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       db.select({
         id: users.id, name: users.name, username: users.username,
         profilePicture: users.profilePicture, lastSeen: users.lastSeen,
-        isAdmin: users.isAdmin, status: users.status,
+        isAdmin: users.isAdmin, status: users.status, isVerified: users.isVerified,
       }).from(users).where(
         and(
           or(ilike(users.name, pattern), ilike(users.username, pattern)),
@@ -958,6 +959,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const postAuthorMap = await getUserMap(postRows.map(p => p.authorId));
     const formattedPosts = postRows.map(p => ({ ...p, author: postAuthorMap[p.authorId] }));
     res.status(200).json({ users: userRows, posts: formattedPosts });
+  });
+
+  app.get('/api/app-url', (_req: Request, res: Response) => {
+    const domains = process.env.REPLIT_DOMAINS;
+    if (domains) {
+      const primary = domains.split(',')[0].trim();
+      return res.json({ url: `https://${primary}` });
+    }
+    res.json({ url: null });
   });
 
   // ─── Admin ───────────────────────────────────────────────────────────────────
