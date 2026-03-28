@@ -53,6 +53,7 @@ export const messages = pgTable("messages", {
   isSystem: boolean("is_system").notNull().default(false),
   replyTo: text("reply_to"),
   readBy: text("read_by").array().notNull().default(sql`'{}'::text[]`),
+  expiresAt: timestamp("expires_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -69,6 +70,7 @@ export const conversations = pgTable("conversations", {
   groupPhoto: text("group_photo").notNull().default(""),
   adminId: text("admin_id"),
   inviteToken: text("invite_token").unique(),
+  disappearingMessages: text("disappearing_messages"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

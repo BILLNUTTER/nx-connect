@@ -183,7 +183,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         authorId: userId,
         content: `📷 updated their profile picture`,
         imageUrl: newPic,
-        expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
       }).returning();
 
       if (currentUser?.friends && currentUser.friends.length > 0) {
@@ -310,7 +310,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const userId = (req as any).userId;
     const input = api.posts.create.input.parse(req.body);
 
-    let expiresAt: Date | null = null;
+    let expiresAt: Date;
     if (input.imageUrl) {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const [existing] = await db.select({ id: posts.id, createdAt: posts.createdAt })
@@ -324,6 +324,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.status(429).json({ message: "You can only post one photo per day.", nextAllowed: nextAllowed.toISOString() });
       }
       expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    } else {
+      expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     }
 
     const [post] = await db.insert(posts).values({
@@ -677,8 +679,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get(api.chats.messages.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const convId = req.params.conversationId;
+    const now = new Date();
     const msgRows = await db.select().from(messages)
-      .where(eq(messages.conversationId, convId))
+      .where(and(
+        eq(messages.conversationId, convId),
+        or(isNull(messages.expiresAt), gt(messages.expiresAt, now))
+      ))
       .orderBy(asc(messages.createdAt));
 
     const senderIds = [...new Set(msgRows.map(m => m.senderId))];
@@ -724,14 +730,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.chats.sendMessage.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const convId = req.params.conversationId;
+    const [convo] = await db.select().from(conversations).where(eq(conversations.id, convId)).limit(1);
+
+    let msgExpiresAt: Date | null = null;
+    if (convo?.disappearingMessages === "24h") {
+      msgExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    } else if (convo?.disappearingMessages === "7d") {
+      msgExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+
     const [msg] = await db.insert(messages).values({
       conversationId: convId,
       senderId: userId,
       content: req.body.content,
       replyTo: req.body.replyTo || null,
+      expiresAt: msgExpiresAt,
     }).returning();
-
-    const [convo] = await db.select().from(conversations).where(eq(conversations.id, convId)).limit(1);
     if (convo) {
       const others = convo.participants.filter(p => p !== userId);
       const newUnreadBy = [...new Set([...convo.unreadBy, ...others])];
@@ -764,6 +778,22 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (msg.senderId !== userId) return res.status(403).json({ message: "Forbidden" });
     await db.delete(messages).where(eq(messages.id, msg.id));
     res.status(200).json({ message: "Message deleted" });
+  });
+
+  app.patch('/api/chats/:conversationId/disappearing', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { conversationId } = req.params;
+    const { duration } = req.body;
+    if (!["off", "24h", "7d"].includes(duration)) return res.status(400).json({ message: "Invalid duration" });
+    const [convo] = await db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+    if (!convo) return res.status(404).json({ message: "Conversation not found" });
+    if (!convo.participants.includes(userId)) return res.status(403).json({ message: "Forbidden" });
+    const disappearingMessages = duration === "off" ? null : duration;
+    const [updated] = await db.update(conversations)
+      .set({ disappearingMessages, updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId))
+      .returning();
+    res.status(200).json(updated);
   });
 
   // ─── Groups ──────────────────────────────────────────────────────────────────

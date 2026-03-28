@@ -120,3 +120,19 @@ export function useDeleteMessage() {
     },
   });
 }
+
+export function useSetDisappearingMessages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ conversationId, duration }: { conversationId: string; duration: "off" | "24h" | "7d" }) => {
+      const data = await apiFetch(`/api/chats/${conversationId}/disappearing`, {
+        method: "PATCH",
+        body: JSON.stringify({ duration }),
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.chats.conversations.path] });
+    },
+  });
+}

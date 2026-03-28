@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, useEditMessage, useDeleteMessage, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
+import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, useEditMessage, useDeleteMessage, useSetDisappearingMessages, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
-import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2 } from "lucide-react";
+import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2, Timer } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -260,7 +260,9 @@ function ActiveChat({
   const deleteMessage = useDeleteMessage();
   const [content, setContent] = useState("");
   const [showSettings, setShowSettings] = useState(false);
+  const [showDMSettings, setShowDMSettings] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
+  const setDisappearing = useSetDisappearingMessages();
   const [swipeData, setSwipeData] = useState<{ msgId: string; dx: number } | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editMsgContent, setEditMsgContent] = useState("");
@@ -354,20 +356,35 @@ function ActiveChat({
             </div>
           </div>
         ) : otherUser ? (
-          <button
-            onClick={() => setLocation(`/profile/${otherUser.id || otherUser._id}`)}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-xl px-1 py-0.5 flex-1 min-w-0"
-            data-testid={`button-chat-view-profile-${otherUser.id || otherUser._id}`}
-          >
-            <Avatar url={otherUser.profilePicture} name={otherUser.name || "U"} size="sm" online={isOnline(otherUser?.lastSeen)} />
-            <div className="text-left min-w-0">
-              <div className="font-bold hover:text-primary transition-colors truncate flex items-center gap-1">
-                {otherUser.name}
-                {(otherUser as any).isVerified && <VerifiedBadge size="xs" />}
+          <>
+            <button
+              onClick={() => setLocation(`/profile/${otherUser.id || otherUser._id}`)}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity rounded-xl px-1 py-0.5 flex-1 min-w-0"
+              data-testid={`button-chat-view-profile-${otherUser.id || otherUser._id}`}
+            >
+              <Avatar url={otherUser.profilePicture} name={otherUser.name || "U"} size="sm" online={isOnline(otherUser?.lastSeen)} />
+              <div className="text-left min-w-0">
+                <div className="font-bold hover:text-primary transition-colors truncate flex items-center gap-1">
+                  {otherUser.name}
+                  {(otherUser as any).isVerified && <VerifiedBadge size="xs" />}
+                </div>
+                <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                  @{otherUser.username} · tap to view profile
+                  {conv?.disappearingMessages && (
+                    <span className="ml-1 text-primary font-semibold">· {conv.disappearingMessages}</span>
+                  )}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground truncate">@{otherUser.username} · tap to view profile</div>
-            </div>
-          </button>
+            </button>
+            <button
+              onClick={() => setShowDMSettings(true)}
+              className="shrink-0 p-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground"
+              data-testid="button-dm-settings"
+              title="Chat settings"
+            >
+              <Timer className="w-5 h-5" />
+            </button>
+          </>
         ) : (
           <div className="font-bold">Conversation</div>
         )}
@@ -562,6 +579,40 @@ function ActiveChat({
           onClose={() => setShowSettings(false)}
         />
       )}
+
+      {showDMSettings && conv && !isGroup && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setShowDMSettings(false); }}>
+          <div className="bg-card rounded-2xl shadow-2xl border border-border w-full max-w-sm">
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <h3 className="font-bold text-lg flex items-center gap-2"><Timer className="w-5 h-5 text-primary" /> Disappearing Messages</h3>
+              <button onClick={() => setShowDMSettings(false)} className="p-2 rounded-xl hover:bg-secondary transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-sm text-muted-foreground">New messages will automatically disappear after the selected time.</p>
+              {(["off", "24h", "7d"] as const).map((opt) => {
+                const label = opt === "off" ? "Off" : opt === "24h" ? "24 hours" : "7 days";
+                const current = conv.disappearingMessages ?? "off";
+                const isActive = current === opt;
+                return (
+                  <button
+                    key={opt}
+                    data-testid={`button-disappear-${opt}`}
+                    onClick={async () => {
+                      await setDisappearing.mutateAsync({ conversationId: conv.id, duration: opt });
+                      setShowDMSettings(false);
+                    }}
+                    disabled={setDisappearing.isPending}
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-sm font-semibold ${isActive ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary"}`}
+                  >
+                    <span>{label}</span>
+                    {isActive && <Check className="w-4 h-4" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -581,6 +632,7 @@ function GroupSettingsPanel({
   const updateGroup = useUpdateGroup();
   const removeMember = useRemoveGroupMember();
   const leaveGroup = useLeaveGroup();
+  const setDisappearing = useSetDisappearingMessages();
   const [editName, setEditName] = useState(conv.groupName || "");
   const [editPhoto, setEditPhoto] = useState(conv.groupPhoto || "");
   const [copied, setCopied] = useState(false);
@@ -706,6 +758,31 @@ function GroupSettingsPanel({
               </button>
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">Share this link — anyone who taps it can join the group</p>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block flex items-center gap-1.5">
+              <Timer className="w-3.5 h-3.5" /> Disappearing Messages
+            </label>
+            <div className="flex gap-2">
+              {(["off", "24h", "7d"] as const).map((opt) => {
+                const label = opt === "off" ? "Off" : opt === "24h" ? "24h" : "7 days";
+                const current = conv.disappearingMessages ?? "off";
+                const isActive = current === opt;
+                return (
+                  <button
+                    key={opt}
+                    data-testid={`button-group-disappear-${opt}`}
+                    onClick={() => setDisappearing.mutate({ conversationId: conv.id, duration: opt })}
+                    disabled={setDisappearing.isPending}
+                    className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all ${isActive ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-secondary text-muted-foreground"}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">New messages disappear after the selected time.</p>
           </div>
 
           <div>
