@@ -155,6 +155,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.put(api.auth.updateProfile.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const { profilePicture, coverPhoto, name, username, phone } = req.body;
+
+    // Fetch current user before update so we can detect profile picture change
+    const currentUser = await getUserById(userId);
+
     const updates: any = { updatedAt: new Date() };
     if (profilePicture !== undefined) updates.profilePicture = profilePicture;
     if (coverPhoto !== undefined) updates.coverPhoto = coverPhoto;
@@ -168,6 +172,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     const [user] = await db.update(users).set(updates).where(eq(users.id, userId)).returning();
     if (!user) return res.status(404).json({ message: "Not found" });
+
+    // If profile picture actually changed, create a post and notify friends
+    const newPic = profilePicture;
+    const picChanged = newPic && newPic !== currentUser?.profilePicture;
+    if (picChanged) {
+      const displayName = updates.name || currentUser?.name || 'Someone';
+      const [pfpPost] = await db.insert(posts).values({
+        authorId: userId,
+        content: `📷 updated their profile picture`,
+        imageUrl: newPic,
+        expiresAt: null,
+      }).returning();
+
+      if (currentUser?.friends && currentUser.friends.length > 0) {
+        await db.insert(notifications).values(currentUser.friends.map((friendId: string) => ({
+          recipientId: friendId,
+          senderId: userId,
+          type: 'friend_post',
+          postId: pfpPost.id,
+          content: `${displayName} updated their profile picture`,
+        })));
+      }
+    }
+
     res.status(200).json(safeUser(user));
   });
 
