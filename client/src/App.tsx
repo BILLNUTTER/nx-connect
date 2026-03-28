@@ -36,6 +36,16 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   return <Component />;
 }
 
+function RootRedirect() {
+  const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  useEffect(() => {
+    if (user) setLocation("/home");
+  }, [user, setLocation]);
+  if (user) return null;
+  return <LandingPage />;
+}
+
 function Router() {
   const [location] = useLocation();
   const { user, isLoading } = useAuth();
@@ -50,9 +60,7 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/">
-        {user ? <HomeFeed /> : <LandingPage />}
-      </Route>
+      <Route path="/" component={RootRedirect} />
       <Route path="/auth" component={AuthPage} />
       
       {/* Protected App Routes wrapped in standard Layout */}
