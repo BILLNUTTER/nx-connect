@@ -1,6 +1,6 @@
 import { Link } from "wouter";
-import { useState, useEffect, useRef } from "react";
-import { ArrowRight, Smartphone, Shield, Users, Download, Star, MapPin, Phone, Mail, Instagram, MessageCircle, CheckCircle, Zap, Camera, Heart, X } from "lucide-react";
+import { useRef } from "react";
+import { ArrowRight, Shield, Users, Download, Star, MapPin, Phone, Mail, Instagram, MessageCircle, CheckCircle, Zap, Camera, Heart } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 
 function useInView(threshold = 0.15) {
@@ -28,31 +28,14 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
 }
 
 export default function LandingPage() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [installed, setInstalled] = useState(false);
-  const [showInstallModal, setShowInstallModal] = useState(false);
-
-  useEffect(() => {
-    const handler = (e: Event) => { e.preventDefault(); setDeferredPrompt(e); };
-    window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => { setInstalled(true); setDeferredPrompt(null); });
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
-
-  const handleInstall = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") setInstalled(true);
-      setDeferredPrompt(null);
-    } else if (!installed) {
-      setShowInstallModal(true);
-    }
+  const handleDownload = () => {
+    const a = document.createElement("a");
+    a.href = "/NX-Connect.apk";
+    a.download = "NX-Connect.apk";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
-
-  const isAndroid = /android/i.test(navigator.userAgent);
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isSafari = /safari/i.test(navigator.userAgent) && !/chrome/i.test(navigator.userAgent);
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden font-sans">
@@ -106,11 +89,11 @@ export default function LandingPage() {
             <Button
               variant="outline"
               className="w-full sm:w-auto text-base px-8 py-5 rounded-2xl bg-background/60 hover:bg-secondary/50"
-              onClick={handleInstall}
+              onClick={handleDownload}
               data-testid="button-download-app"
             >
               <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black text-xs mr-2">NX</div>
-              {installed ? "App Installed ✓" : "Download App"}
+              Download App
             </Button>
           </div>
 
@@ -212,8 +195,8 @@ export default function LandingPage() {
                   Get Started — It's Free <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
-              <Button variant="outline" className="text-base px-10 py-5 rounded-2xl" onClick={handleInstall} data-testid="button-download-cta">
-                <div className="w-5 h-5 rounded bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black text-[10px] mr-2">NX</div>
+              <Button variant="outline" className="text-base px-10 py-5 rounded-2xl" onClick={handleDownload} data-testid="button-download-cta">
+                <Download className="w-4 h-4 mr-2" />
                 Download App
               </Button>
             </div>
@@ -273,56 +256,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {showInstallModal && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4" onClick={() => setShowInstallModal(false)}>
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative bg-card border border-border rounded-3xl p-6 w-full max-w-sm shadow-2xl z-10" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setShowInstallModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors" data-testid="button-close-install-modal">
-              <X className="w-5 h-5" />
-            </button>
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black text-xl shadow-lg shadow-primary/30 mb-4 mx-auto">NX</div>
-            <h3 className="text-xl font-black text-center mb-1">Install NX-Connect</h3>
-            <p className="text-sm text-muted-foreground text-center mb-6">Add NX-Connect to your home screen for the best experience — it works just like a native app.</p>
-            <div className="space-y-3">
-              {(isAndroid || (!isIOS && !isSafari)) && (
-                <div className="bg-secondary/50 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-500/15 flex items-center justify-center text-green-500 shrink-0 mt-0.5">
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm mb-0.5">Android Chrome</div>
-                    <div className="text-xs text-muted-foreground">Tap the <strong>⋮ menu</strong> in Chrome → <strong>"Add to Home screen"</strong> or look for the install icon <strong>(⊕)</strong> in the address bar</div>
-                  </div>
-                </div>
-              )}
-              {(isIOS || isSafari) && (
-                <div className="bg-secondary/50 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-500 shrink-0 mt-0.5">
-                    <Smartphone className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm mb-0.5">iPhone / iPad</div>
-                    <div className="text-xs text-muted-foreground">In Safari, tap the <strong>Share button (□↑)</strong> at the bottom → <strong>"Add to Home Screen"</strong></div>
-                  </div>
-                </div>
-              )}
-              {!isAndroid && !isIOS && (
-                <div className="bg-secondary/50 rounded-2xl p-4 flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-purple-500/15 flex items-center justify-center text-purple-500 shrink-0 mt-0.5">
-                    <Download className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-sm mb-0.5">Desktop Chrome / Edge</div>
-                    <div className="text-xs text-muted-foreground">Click the <strong>install icon (⊕)</strong> in your browser's address bar, or go to <strong>Menu → "Install NX-Connect"</strong></div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <Button className="w-full mt-5 rounded-2xl" onClick={() => setShowInstallModal(false)} data-testid="button-install-got-it">Got it</Button>
-          </div>
-        </div>
-      )}
 
       <footer className="py-10 border-t border-border/50 px-5">
         <div className="max-w-5xl mx-auto">
