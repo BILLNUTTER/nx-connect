@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { formatDistanceToNow } from "date-fns";
 
 export function isOnline(lastSeen?: string | Date | null): boolean {
@@ -120,21 +121,28 @@ export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", handler);
-    document.body.style.overflow = "hidden";
+    // Lock scroll without causing page jump
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
     return () => {
       document.removeEventListener("keydown", handler);
-      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
     };
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] bg-black flex items-center justify-center"
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.95)", display: "flex", alignItems: "center", justifyContent: "center" }}
       onClick={onClose}
       data-testid="photo-lightbox"
     >
       <button
-        className="absolute top-4 right-4 z-10 text-white/80 hover:text-white bg-black/40 rounded-full p-2 transition-colors"
+        style={{ position: "absolute", top: 16, right: 16, zIndex: 10, color: "rgba(255,255,255,0.85)", background: "rgba(0,0,0,0.4)", border: "none", borderRadius: "50%", padding: 8, cursor: "pointer", lineHeight: 0 }}
         onClick={onClose}
         data-testid="button-close-lightbox"
       >
@@ -146,7 +154,7 @@ export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string
         target="_blank"
         rel="noreferrer"
         onClick={e => e.stopPropagation()}
-        className="absolute bottom-5 right-5 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-colors"
+        style={{ position: "absolute", bottom: 20, right: 20, zIndex: 10, background: "rgba(0,0,0,0.55)", color: "#fff", borderRadius: 24, padding: "8px 18px", fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
         data-testid="button-download-lightbox"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -155,11 +163,11 @@ export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string
       <img
         src={src}
         alt={alt || "Photo"}
-        className="max-w-full max-h-full object-contain select-none"
         onClick={e => e.stopPropagation()}
         data-testid="lightbox-image"
-        style={{ maxHeight: "100dvh", maxWidth: "100dvw" }}
+        style={{ maxWidth: "95vw", maxHeight: "95vh", objectFit: "contain", borderRadius: 8, userSelect: "none" }}
       />
-    </div>
+    </div>,
+    document.body
   );
 }
