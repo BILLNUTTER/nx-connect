@@ -182,7 +182,7 @@ export default function PostPage() {
             <img
               src={(post as any).imageUrl}
               alt="Post"
-              className="w-full object-cover max-h-[500px] cursor-pointer"
+              className="w-full object-contain cursor-pointer"
               onClick={() => setLightboxSrc((post as any).imageUrl)}
               data-testid="img-post-detail"
             />
