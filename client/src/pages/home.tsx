@@ -209,7 +209,7 @@ function StoryViewer({ photos, startIndex, onClose }: {
       <img
         src={photo.imageUrl}
         alt={photo.caption || "Story"}
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-contain"
         data-testid="story-image"
       />
 

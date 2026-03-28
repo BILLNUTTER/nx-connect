@@ -182,7 +182,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         authorId: userId,
         content: `📷 updated their profile picture`,
         imageUrl: newPic,
-        expiresAt: null,
+        expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
       }).returning();
 
       if (currentUser?.friends && currentUser.friends.length > 0) {
