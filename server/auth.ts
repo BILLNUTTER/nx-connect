@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
-import { User } from "./models";
+import { db } from "./db";
+import { users } from "./pg-schema";
+import { eq } from "drizzle-orm";
 
 const JWT_SECRET = process.env.JWT_SECRET || "nutterx_super_secret_key_12345";
 
@@ -18,7 +20,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
     (req as any).userId = decoded.userId;
-    User.updateOne({ _id: decoded.userId }, { lastSeen: new Date() }).catch(() => {});
+    db.update(users)
+      .set({ lastSeen: new Date() })
+      .where(eq(users.id, decoded.userId))
+      .catch(() => {});
     next();
   } catch (error) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -34,7 +39,10 @@ export async function adminOnly(req: Request, res: Response, next: NextFunction)
   if (authHeader && authHeader.startsWith("Bearer ")) {
     try {
       const decoded = jwt.verify(authHeader.split(" ")[1], JWT_SECRET) as { userId: string };
-      const user = await User.findById(decoded.userId).select('isAdmin').lean() as any;
+      const [user] = await db.select({ isAdmin: users.isAdmin })
+        .from(users)
+        .where(eq(users.id, decoded.userId))
+        .limit(1);
       if (user?.isAdmin) {
         (req as any).userId = decoded.userId;
         return next();

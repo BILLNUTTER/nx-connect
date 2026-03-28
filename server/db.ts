@@ -1,22 +1,26 @@
-import mongoose from "mongoose";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./pg-schema";
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:admin@whatsapp-cluster.38vq8k0.mongodb.net/nutterxfb";
+const connectionString =
+  process.env.SUPABASE_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  "postgresql://postgres.vvuqeegvdabuolwzllia:BILLnutter001002@aws-1-eu-central-1.pooler.supabase.com:5432/postgres";
+
+const pool = new Pool({
+  connectionString,
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+});
+
+export const db = drizzle(pool, { schema });
 
 export async function connectDB() {
   try {
-    await mongoose.connect(MONGO_URI);
-    console.log("MongoDB connected successfully.");
-    
-    // Configure mongoose to transform _id to id when calling toJSON
-    mongoose.set('toJSON', {
-      virtuals: true,
-      transform: (doc, converted) => {
-        delete converted._id;
-        delete converted.__v;
-      }
-    });
+    await pool.query("SELECT 1");
+    console.log("PostgreSQL (Supabase) connected successfully.");
   } catch (error) {
-    console.error("MongoDB connection error:", error);
+    console.error("PostgreSQL connection error:", error);
     process.exit(1);
   }
 }
