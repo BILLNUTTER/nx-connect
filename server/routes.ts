@@ -293,6 +293,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.status(200).json({ ...updated, author: authorMap[updated.authorId] });
   });
 
+  app.patch(api.posts.edit.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { content } = api.posts.edit.input.parse(req.body);
+    const [post] = await db.select().from(posts).where(eq(posts.id, req.params.id)).limit(1);
+    if (!post) return res.status(404).json({ message: "Not found" });
+    if (post.authorId !== userId) return res.status(403).json({ message: "Forbidden" });
+    const [updated] = await db.update(posts).set({ content, updatedAt: new Date() })
+      .where(eq(posts.id, post.id)).returning();
+    const authorMap = await getUserMap([updated.authorId]);
+    res.status(200).json({ ...updated, author: authorMap[updated.authorId] });
+  });
+
   app.post(api.posts.create.path, authenticate, async (req: Request, res: Response) => {
     const userId = (req as any).userId;
     const input = api.posts.create.input.parse(req.body);
@@ -416,6 +428,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const [updated] = await db.update(comments).set({ likes: newLikes, updatedAt: new Date() })
       .where(eq(comments.id, comment.id)).returning();
     res.status(200).json(updated);
+  });
+
+  app.patch(api.comments.edit.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { content } = api.comments.edit.input.parse(req.body);
+    const [comment] = await db.select().from(comments).where(eq(comments.id, req.params.commentId)).limit(1);
+    if (!comment) return res.status(404).json({ message: "Not found" });
+    if (comment.authorId !== userId) return res.status(403).json({ message: "Forbidden" });
+    const [updated] = await db.update(comments).set({ content, updatedAt: new Date() })
+      .where(eq(comments.id, comment.id)).returning();
+    const authorMap = await getUserMap([updated.authorId]);
+    res.status(200).json({ ...updated, author: authorMap[updated.authorId] });
+  });
+
+  app.delete(api.comments.delete.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const reqUser = await getUserById(userId);
+    const [comment] = await db.select().from(comments).where(eq(comments.id, req.params.commentId)).limit(1);
+    if (!comment) return res.status(404).json({ message: "Not found" });
+    if (comment.authorId !== userId && !reqUser?.isAdmin) return res.status(403).json({ message: "Forbidden" });
+    await db.delete(comments).where(eq(comments.id, comment.id));
+    res.status(200).json({ message: "Comment deleted" });
   });
 
   // ─── Users / Friends ─────────────────────────────────────────────────────────
@@ -708,6 +742,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     res.status(201).json(msg);
+  });
+
+  app.patch(api.chats.editMessage.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { content } = api.chats.editMessage.input.parse(req.body);
+    const [msg] = await db.select().from(messages).where(eq(messages.id, req.params.messageId)).limit(1);
+    if (!msg) return res.status(404).json({ message: "Not found" });
+    if (msg.senderId !== userId) return res.status(403).json({ message: "Forbidden" });
+    const [updated] = await db.update(messages).set({ content, updatedAt: new Date() })
+      .where(eq(messages.id, msg.id)).returning();
+    res.status(200).json(updated);
+  });
+
+  app.delete(api.chats.deleteMessage.path, authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const [msg] = await db.select().from(messages).where(eq(messages.id, req.params.messageId)).limit(1);
+    if (!msg) return res.status(404).json({ message: "Not found" });
+    if (msg.senderId !== userId) return res.status(403).json({ message: "Forbidden" });
+    await db.delete(messages).where(eq(messages.id, msg.id));
+    res.status(200).json({ message: "Message deleted" });
   });
 
   // ─── Groups ──────────────────────────────────────────────────────────────────

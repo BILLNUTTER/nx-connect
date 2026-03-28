@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, useHidePost, useLikeComment } from "@/hooks/use-posts";
+import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, useHidePost, useLikeComment, useEditPost, useEditComment, useDeleteComment } from "@/hooks/use-posts";
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox } from "@/components/ui/shared";
-import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight, Download } from "lucide-react";
+import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight, Download, Pencil, Check, MoreHorizontal } from "lucide-react";
 
 export default function PostPage() {
   const [location, setLocation] = useLocation();
@@ -16,6 +16,9 @@ export default function PostPage() {
   const likePost = useLikePost();
   const deletePost = useDeletePost();
   const hidePost = useHidePost();
+  const editPost = useEditPost();
+  const editComment = useEditComment();
+  const deleteComment = useDeleteComment();
   const createComment = useCreateComment();
   const likeComment = useLikeComment();
   const { data: friends } = useFriends();
@@ -25,6 +28,11 @@ export default function PostPage() {
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState(false);
+  const [editPostContent, setEditPostContent] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [commentMenuOpen, setCommentMenuOpen] = useState<string | null>(null);
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto space-y-4 py-4">
@@ -153,6 +161,13 @@ export default function PostPage() {
             {isOwnPost && (
               <div className="flex items-center gap-1">
                 <button
+                  onClick={() => { setEditPostContent(post.content); setEditingPost(true); }}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-full transition-colors"
+                  data-testid="button-edit-post"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Edit
+                </button>
+                <button
                   onClick={() => hidePost.mutate(id)}
                   disabled={hidePost.isPending}
                   className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground bg-secondary/60 hover:bg-secondary px-3 py-1.5 rounded-full transition-colors"
@@ -174,8 +189,38 @@ export default function PostPage() {
           </div>
         </div>
 
-        {(post.content !== "📷" || !(post as any).imageUrl) && (
-          <p className="text-xl leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content"><LinkedText text={post.content} /></p>
+        {editingPost ? (
+          <div className="mb-4 space-y-2">
+            <textarea
+              autoFocus
+              value={editPostContent}
+              onChange={e => setEditPostContent(e.target.value)}
+              onKeyDown={e => { if (e.key === "Escape") setEditingPost(false); if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { if (editPostContent.trim() && editPostContent !== post.content) editPost.mutateAsync({ id, content: editPostContent.trim() }).then(() => setEditingPost(false)); else setEditingPost(false); } }}
+              className="w-full bg-secondary/40 border border-primary/30 rounded-xl px-4 py-3 text-base resize-none outline-none focus:border-primary/60 transition-colors min-h-[80px]"
+              rows={4}
+              data-testid="input-edit-post-detail"
+            />
+            <div className="flex items-center gap-2 justify-end">
+              <button onClick={() => setEditingPost(false)} className="px-4 py-1.5 text-sm rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors" data-testid="button-cancel-edit-post-detail">Cancel</button>
+              <button
+                onClick={() => { if (editPostContent.trim() && editPostContent !== post.content) editPost.mutateAsync({ id, content: editPostContent.trim() }).then(() => setEditingPost(false)); else setEditingPost(false); }}
+                disabled={editPost.isPending || !editPostContent.trim()}
+                className="px-4 py-1.5 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1"
+                data-testid="button-save-edit-post-detail"
+              >
+                <Check className="w-3.5 h-3.5" /> Save changes
+              </button>
+            </div>
+          </div>
+        ) : (
+          (post.content !== "📷" || !(post as any).imageUrl) && (
+            <p className="text-xl leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content">
+              <LinkedText text={post.content} />
+              {post.updatedAt && post.createdAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 5000 && (
+                <span className="text-xs text-muted-foreground/60 ml-2">(edited)</span>
+              )}
+            </p>
+          )
         )}
         {(post as any).imageUrl && (
           <div className="relative mb-6 rounded-2xl overflow-hidden border border-border/50 group/img">
@@ -235,6 +280,8 @@ export default function PostPage() {
               const cAuthorId = c.author?.id || (c.authorId as any)?.id;
               const hasLikedComment = (c.likes || []).includes(user?.id || "");
               const replies = comments.filter((r: any) => r.replyTo === c.id);
+              const isOwnComment = cAuthorId === user?.id;
+              const isEditingThis = editingCommentId === c.id;
               return (
                 <div key={c.id}>
                   <div className="flex gap-3">
@@ -242,14 +289,41 @@ export default function PostPage() {
                       <Avatar url={c.author?.profilePicture} name={c.author?.name || "U"} size="sm" />
                     </button>
                     <div className="flex-1 min-w-0">
-                      <div className="bg-secondary/50 rounded-2xl px-4 py-3">
+                      <div className="bg-secondary/50 rounded-2xl px-4 py-3 relative group/comment">
                         <div className="flex items-baseline gap-2 mb-1">
                           <button onClick={() => cAuthorId && setLocation(`/profile/${cAuthorId}`)} className="font-bold text-sm hover:underline text-left">
                             {c.author?.name}
                           </button>
                           <span className="text-xs text-muted-foreground"><TimeAgo date={c.createdAt!} /></span>
+                          {c.updatedAt && c.createdAt && new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 5000 && (
+                            <span className="text-[10px] text-muted-foreground/60">(edited)</span>
+                          )}
+                          {isOwnComment && !isEditingThis && (
+                            <div className="ml-auto flex items-center gap-1 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                              <button onClick={() => { setEditingCommentId(c.id); setEditCommentContent(c.content); setCommentMenuOpen(null); }} className="p-1 rounded hover:bg-secondary/80 text-muted-foreground hover:text-primary transition-colors" data-testid={`button-edit-comment-${c.id}`}><Pencil className="w-3 h-3" /></button>
+                              <button onClick={() => { if (confirm("Delete this comment?")) deleteComment.mutate({ postId: id, commentId: c.id }); }} className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" data-testid={`button-delete-comment-${c.id}`}><Trash2 className="w-3 h-3" /></button>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm">{c.content}</p>
+                        {isEditingThis ? (
+                          <div className="space-y-1.5">
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editCommentContent}
+                              onChange={e => setEditCommentContent(e.target.value)}
+                              onKeyDown={e => { if (e.key === "Escape") setEditingCommentId(null); if (e.key === "Enter" && editCommentContent.trim()) { editComment.mutateAsync({ postId: id, commentId: c.id, content: editCommentContent.trim() }).then(() => setEditingCommentId(null)); } }}
+                              className="w-full bg-background/60 border border-primary/30 rounded-lg px-2 py-1 text-sm outline-none focus:border-primary/60"
+                              data-testid={`input-edit-comment-${c.id}`}
+                            />
+                            <div className="flex items-center gap-1.5 justify-end">
+                              <button onClick={() => setEditingCommentId(null)} className="px-2 py-0.5 text-[11px] rounded bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors">Cancel</button>
+                              <button onClick={() => { if (editCommentContent.trim()) editComment.mutateAsync({ postId: id, commentId: c.id, content: editCommentContent.trim() }).then(() => setEditingCommentId(null)); }} disabled={editComment.isPending || !editCommentContent.trim()} className="px-2 py-0.5 text-[11px] rounded bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1"><Check className="w-2.5 h-2.5" /> Save</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm">{c.content}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-4 mt-1.5 px-2">
                         <button

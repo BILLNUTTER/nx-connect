@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
-import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost } from "@/hooks/use-posts";
+import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost, useEditPost } from "@/hooks/use-posts";
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox } from "@/components/ui/shared";
-import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send, Download } from "lucide-react";
+import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send, Download, Pencil, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post, DailyPhoto } from "@shared/schema";
 
@@ -716,9 +716,12 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
   const likePost = useLikePost();
   const deletePost = useDeletePost();
   const hidePost = useHidePost();
+  const editPost = useEditPost();
   const prefetchPost = usePrefetchPost();
   const [menuOpen, setMenuOpen] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [editingPost, setEditingPost] = useState(false);
+  const [editContent, setEditContent] = useState(post.content);
   const menuRef = useRef<HTMLDivElement>(null);
   const hasLiked = post.likes.includes(currentUserId || "");
   const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
@@ -726,6 +729,12 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
   const isHidden = (post as any).hidden;
   const isAdminPost = !!(post as any).isAdminPost;
   const canManage = isOwn || isAdmin;
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim() || editContent === post.content) { setEditingPost(false); return; }
+    await editPost.mutateAsync({ id: post.id!, content: editContent.trim() });
+    setEditingPost(false);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -804,6 +813,15 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
                 <div className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 w-48 overflow-hidden">
                   {isOwn && (
                     <button
+                      onClick={() => { setMenuOpen(false); setEditContent(post.content); setEditingPost(true); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                      data-testid={`button-edit-post-${post.id}`}
+                    >
+                      <Pencil className="w-4 h-4 text-primary" /> Edit post
+                    </button>
+                  )}
+                  {isOwn && (
+                    <button
                       onClick={() => { setMenuOpen(false); hidePost.mutate(post.id); }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
                       data-testid={`button-hide-post-${post.id}`}
@@ -825,17 +843,40 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
           )}
         </div>
 
-        <button
-          onClick={() => setLocation(`/post/${post.id}`)}
-          className="w-full text-left"
-          data-testid={`button-open-post-${post.id}`}
-        >
-          {(post.content !== "📷" || !(post as any).imageUrl) && (
-            <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
-              <LinkedText text={post.content} />
-            </p>
-          )}
-        </button>
+        {editingPost ? (
+          <div className="mt-1 space-y-2">
+            <textarea
+              autoFocus
+              value={editContent}
+              onChange={e => setEditContent(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleSaveEdit(); if (e.key === "Escape") setEditingPost(false); }}
+              className="w-full bg-secondary/40 border border-primary/30 rounded-xl px-3 py-2 text-sm resize-none outline-none focus:border-primary/60 transition-colors min-h-[60px]"
+              rows={3}
+              data-testid={`input-edit-post-${post.id}`}
+            />
+            <div className="flex items-center gap-2 justify-end">
+              <button onClick={() => setEditingPost(false)} className="px-3 py-1.5 text-xs rounded-lg bg-secondary hover:bg-secondary/80 text-muted-foreground transition-colors" data-testid={`button-cancel-edit-post-${post.id}`}>Cancel</button>
+              <button onClick={handleSaveEdit} disabled={editPost.isPending || !editContent.trim()} className="px-3 py-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1" data-testid={`button-save-edit-post-${post.id}`}>
+                <Check className="w-3 h-3" /> Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setLocation(`/post/${post.id}`)}
+            className="w-full text-left"
+            data-testid={`button-open-post-${post.id}`}
+          >
+            {(post.content !== "📷" || !(post as any).imageUrl) && (
+              <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+                <LinkedText text={post.content} />
+                {post.updatedAt && post.createdAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 5000 && (
+                  <span className="text-[10px] text-muted-foreground/60 ml-1">(edited)</span>
+                )}
+              </p>
+            )}
+          </button>
+        )}
 
         {(post as any).imageUrl && (
           <div className="relative mt-2 rounded-xl overflow-hidden border border-border/50 group/img" data-testid={`img-post-${post.id}`}>

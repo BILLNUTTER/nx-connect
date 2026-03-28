@@ -88,3 +88,35 @@ export function useSendMessage() {
     },
   });
 }
+
+export function useEditMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ conversationId, messageId, content }: { conversationId: string; messageId: string; content: string }) => {
+      const url = buildUrl(api.chats.editMessage.path, { conversationId, messageId });
+      const data = await apiFetch(url, { method: "PATCH", body: JSON.stringify({ content }) });
+      return { ...data, conversationId };
+    },
+    onSuccess: (updated: any) => {
+      queryClient.setQueryData([api.chats.messages.path, updated.conversationId], (old: any[]) =>
+        Array.isArray(old) ? old.map(m => m.id === updated.id ? { ...m, content: updated.content, updatedAt: updated.updatedAt } : m) : old
+      );
+    },
+  });
+}
+
+export function useDeleteMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ conversationId, messageId }: { conversationId: string; messageId: string }) => {
+      const url = buildUrl(api.chats.deleteMessage.path, { conversationId, messageId });
+      await apiFetch(url, { method: "DELETE" });
+      return { conversationId, messageId };
+    },
+    onSuccess: ({ conversationId, messageId }) => {
+      queryClient.setQueryData([api.chats.messages.path, conversationId], (old: any[]) =>
+        Array.isArray(old) ? old.filter(m => m.id !== messageId) : old
+      );
+    },
+  });
+}

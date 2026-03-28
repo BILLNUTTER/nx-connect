@@ -205,3 +205,53 @@ export function useLikeComment() {
     },
   });
 }
+
+export function useEditPost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const url = buildUrl(api.posts.edit.path, { id });
+      const data = await apiFetch(url, { method: "PATCH", body: JSON.stringify({ content }) });
+      return data;
+    },
+    onSuccess: (updated: any) => {
+      if (updated?.id) {
+        queryClient.setQueryData([api.posts.get.path, updated.id], (old: any) =>
+          old ? { ...old, content: updated.content, updatedAt: updated.updatedAt } : old
+        );
+        queryClient.setQueryData([api.posts.list.path], (old: any) =>
+          Array.isArray(old) ? old.map((p: any) => p.id === updated.id ? { ...p, content: updated.content, updatedAt: updated.updatedAt } : p) : old
+        );
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });
+    },
+  });
+}
+
+export function useEditComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ postId, commentId, content }: { postId: string; commentId: string; content: string }) => {
+      const url = buildUrl(api.comments.edit.path, { postId, commentId });
+      const data = await apiFetch(url, { method: "PATCH", body: JSON.stringify({ content }) });
+      return { ...data, postId };
+    },
+    onSuccess: (updated: any) => {
+      queryClient.invalidateQueries({ queryKey: [api.comments.list.path, updated.postId] });
+    },
+  });
+}
+
+export function useDeleteComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ postId, commentId }: { postId: string; commentId: string }) => {
+      const url = buildUrl(api.comments.delete.path, { postId, commentId });
+      await apiFetch(url, { method: "DELETE" });
+      return { postId, commentId };
+    },
+    onSuccess: ({ postId }) => {
+      queryClient.invalidateQueries({ queryKey: [api.comments.list.path, postId] });
+    },
+  });
+}

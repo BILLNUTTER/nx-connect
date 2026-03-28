@@ -93,6 +93,12 @@ export const api = {
       method: 'PATCH' as const,
       path: '/api/posts/:id/hide' as const,
       responses: { 200: postSchema, 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
+    },
+    edit: {
+      method: 'PATCH' as const,
+      path: '/api/posts/:id/edit' as const,
+      input: z.object({ content: z.string().min(1) }),
+      responses: { 200: postSchema, 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
     }
   },
   comments: {
@@ -106,6 +112,17 @@ export const api = {
       path: '/api/posts/:postId/comments' as const,
       input: insertCommentSchema,
       responses: { 201: commentSchema }
+    },
+    edit: {
+      method: 'PATCH' as const,
+      path: '/api/posts/:postId/comments/:commentId' as const,
+      input: z.object({ content: z.string().min(1) }),
+      responses: { 200: commentSchema, 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/posts/:postId/comments/:commentId' as const,
+      responses: { 200: z.object({ message: z.string() }), 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
     }
   },
   users: {
@@ -175,6 +192,17 @@ export const api = {
       path: '/api/chats/:conversationId/messages' as const,
       input: z.object({ content: z.string() }),
       responses: { 201: messageSchema }
+    },
+    editMessage: {
+      method: 'PATCH' as const,
+      path: '/api/chats/:conversationId/messages/:messageId' as const,
+      input: z.object({ content: z.string().min(1) }),
+      responses: { 200: messageSchema, 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
+    },
+    deleteMessage: {
+      method: 'DELETE' as const,
+      path: '/api/chats/:conversationId/messages/:messageId' as const,
+      responses: { 200: z.object({ message: z.string() }), 403: errorSchemas.unauthorized, 404: errorSchemas.notFound }
     }
   },
   notifications: {

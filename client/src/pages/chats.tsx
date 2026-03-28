@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
+import { useConversations, useMessages, useSendMessage, useGetOrCreateConversation, useEditMessage, useDeleteMessage, api, buildUrl, apiFetch, parseWithLogging } from "@/hooks/use-chats";
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, isOnline, LinkedText } from "@/components/ui/shared";
-import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock } from "lucide-react";
+import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2 } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -255,10 +255,15 @@ function ActiveChat({
 }) {
   const { data: messages, isLoading: messagesLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage();
+  const editMessage = useEditMessage();
+  const deleteMessage = useDeleteMessage();
   const [content, setContent] = useState("");
   const [showSettings, setShowSettings] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [swipeData, setSwipeData] = useState<{ msgId: string; dx: number } | null>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editMsgContent, setEditMsgContent] = useState("");
+  const [msgMenuId, setMsgMenuId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
@@ -414,7 +419,7 @@ function ActiveChat({
                 </div>
               )}
               <div
-                className={`flex flex-col max-w-[72%] ${isMe ? "items-end" : "items-start"} transition-transform`}
+                className={`flex flex-col max-w-[72%] ${isMe ? "items-end" : "items-start"} transition-transform group/msg`}
                 style={{ transform: `translateX(${swipeDx * 0.4}px)` }}
               >
                 {!isMe && isGroup && senderName && (
@@ -428,18 +433,56 @@ function ActiveChat({
                     <div className="text-xs truncate opacity-70">{msg.replyTo.content}</div>
                   </div>
                 )}
-                <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${
+                <div className={`relative rounded-2xl px-4 py-2.5 shadow-sm ${
                   isMe ? "bg-primary text-white rounded-br-sm" : "bg-card border border-border/50 text-foreground rounded-bl-sm"
                 }`}>
-                  <LinkedText
-                    text={msg.content}
-                    linkClassName={isMe ? "text-white underline underline-offset-2 hover:no-underline break-all opacity-90" : "text-primary underline underline-offset-2 hover:no-underline break-all"}
-                  />
+                  {editingMsgId === msg.id ? (
+                    <div className="flex items-center gap-1 min-w-[160px]">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editMsgContent}
+                        onChange={e => setEditMsgContent(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Escape") setEditingMsgId(null);
+                          if (e.key === "Enter" && editMsgContent.trim()) {
+                            editMessage.mutateAsync({ conversationId, messageId: msg.id, content: editMsgContent.trim() }).then(() => setEditingMsgId(null));
+                          }
+                        }}
+                        className="flex-1 bg-transparent border-b border-white/40 outline-none text-sm text-inherit"
+                        data-testid={`input-edit-message-${msg.id}`}
+                      />
+                      <button onClick={() => setEditingMsgId(null)} className="ml-1 opacity-70 hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => { if (editMsgContent.trim()) editMessage.mutateAsync({ conversationId, messageId: msg.id, content: editMsgContent.trim() }).then(() => setEditingMsgId(null)); }} disabled={editMessage.isPending} className="ml-0.5 opacity-70 hover:opacity-100"><Check className="w-3.5 h-3.5" /></button>
+                    </div>
+                  ) : (
+                    <LinkedText
+                      text={msg.content}
+                      linkClassName={isMe ? "text-white underline underline-offset-2 hover:no-underline break-all opacity-90" : "text-primary underline underline-offset-2 hover:no-underline break-all"}
+                    />
+                  )}
+                  {isMe && editingMsgId !== msg.id && (
+                    <div className={`absolute top-1/2 -translate-y-1/2 ${isMe ? "-left-16" : "-right-16"} flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-opacity`}>
+                      <button
+                        onClick={() => { setEditMsgContent(msg.content); setEditingMsgId(msg.id); setMsgMenuId(null); }}
+                        className="p-1.5 rounded-full bg-secondary/80 hover:bg-secondary text-muted-foreground hover:text-primary transition-colors shadow-sm"
+                        data-testid={`button-edit-message-${msg.id}`}
+                      ><Pencil className="w-3 h-3" /></button>
+                      <button
+                        onClick={() => { if (confirm("Delete this message?")) deleteMessage.mutate({ conversationId, messageId: msg.id }); }}
+                        className="p-1.5 rounded-full bg-secondary/80 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shadow-sm"
+                        data-testid={`button-delete-message-${msg.id}`}
+                      ><Trash2 className="w-3 h-3" /></button>
+                    </div>
+                  )}
                 </div>
                 <div className={`flex items-center gap-1 mt-0.5 mx-1 ${isMe ? "flex-row-reverse" : ""}`}>
                   <span className="text-[10px] text-muted-foreground">
                     {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ""}
                   </span>
+                  {msg.updatedAt && msg.createdAt && new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 5000 && (
+                    <span className="text-[10px] text-muted-foreground/60 italic">edited</span>
+                  )}
                   {isMe && !isGroup && (
                     msg.pending
                       ? <Clock className="w-3 h-3 text-muted-foreground/40 shrink-0" />
