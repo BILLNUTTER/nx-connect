@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import { ArrowRight, Shield, Users, Download, Star, MapPin, Phone, Mail, Instagram, MessageCircle, CheckCircle, Zap, Camera, Heart } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 
@@ -28,13 +28,33 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
 }
 
 export default function LandingPage() {
-  const handleDownload = () => {
-    const a = document.createElement("a");
-    a.href = "/NX-Connect.apk";
-    a.download = "NX-Connect.apk";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    const installedHandler = () => {
+      setInstalled(true);
+      setDeferredPrompt(null);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === "accepted") setInstalled(true);
+      setDeferredPrompt(null);
+    }
   };
 
   return (
@@ -89,11 +109,12 @@ export default function LandingPage() {
             <Button
               variant="outline"
               className="w-full sm:w-auto text-base px-8 py-5 rounded-2xl bg-background/60 hover:bg-secondary/50"
-              onClick={handleDownload}
+              onClick={handleInstall}
+              disabled={installed || !deferredPrompt}
               data-testid="button-download-app"
             >
               <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-black text-xs mr-2">NX</div>
-              Download App
+              {installed ? "App Installed ✓" : "Add to Home Screen"}
             </Button>
           </div>
 
@@ -195,9 +216,9 @@ export default function LandingPage() {
                   Get Started — It's Free <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
-              <Button variant="outline" className="text-base px-10 py-5 rounded-2xl" onClick={handleDownload} data-testid="button-download-cta">
+              <Button variant="outline" className="text-base px-10 py-5 rounded-2xl" onClick={handleInstall} disabled={installed || !deferredPrompt} data-testid="button-download-cta">
                 <Download className="w-4 h-4 mr-2" />
-                Download App
+                {installed ? "App Installed ✓" : "Add to Home Screen"}
               </Button>
             </div>
           </div>
