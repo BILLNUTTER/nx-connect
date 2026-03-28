@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { useRef, useState, useEffect } from "react";
-import { ArrowRight, Shield, Users, Download, Star, MapPin, Phone, Mail, Instagram, MessageCircle, CheckCircle, Zap, Camera, Heart } from "lucide-react";
+import { ArrowRight, Shield, Users, Download, Star, MapPin, Phone, Mail, Instagram, MessageCircle, CheckCircle, Zap, Camera, Heart, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/shared";
 
 function useInView(threshold = 0.15) {
