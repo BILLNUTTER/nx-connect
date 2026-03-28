@@ -52,22 +52,27 @@ export function useMessages(conversationId: string | null) {
 export function useSendMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ conversationId, content, replyTo }: { conversationId: string; content: string; replyTo?: string; currentUserId?: string }) => {
+    mutationFn: async ({ conversationId, content, replyTo, audioUrl }: { conversationId: string; content?: string; replyTo?: string; currentUserId?: string; audioUrl?: string }) => {
       const url = buildUrl(api.chats.sendMessage.path, { conversationId });
       const data = await apiFetch(url, {
         method: "POST",
-        body: JSON.stringify({ content, ...(replyTo ? { replyTo } : {}) }),
+        body: JSON.stringify({
+          content: content || "",
+          ...(replyTo ? { replyTo } : {}),
+          ...(audioUrl ? { audioUrl } : {}),
+        }),
       });
       return parseWithLogging(api.chats.sendMessage.responses[201], data, "chats.sendMessage");
     },
-    onMutate: async ({ conversationId, content, currentUserId }) => {
+    onMutate: async ({ conversationId, content, audioUrl, currentUserId }) => {
       await queryClient.cancelQueries({ queryKey: [api.chats.messages.path, conversationId] });
       const prev = queryClient.getQueryData<any[]>([api.chats.messages.path, conversationId]);
       const optimistic = {
         id: `optimistic-${Date.now()}`,
         conversationId,
         senderId: currentUserId || '',
-        content,
+        content: content || (audioUrl ? "🎙 Voice note" : ""),
+        audioUrl: audioUrl || null,
         readBy: [],
         createdAt: new Date().toISOString(),
         pending: true,

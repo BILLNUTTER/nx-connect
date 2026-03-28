@@ -5,7 +5,7 @@ import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, us
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
-import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2, Timer } from "lucide-react";
+import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2, Timer, Mic, Play, Pause } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -29,6 +29,85 @@ async function compressImage(file: File, maxWidth = 400, quality = 0.82): Promis
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function VoiceNotePlayer({ audioUrl, isMe }: { audioUrl: string; isMe: boolean }) {
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play();
+      setPlaying(true);
+    }
+  };
+
+  const fmt = (t: number) => {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const progress = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
+  const bars = 28;
+
+  return (
+    <div className="flex items-center gap-2.5 min-w-[180px] max-w-[220px]">
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        onTimeUpdate={() => audioRef.current && setCurrentTime(audioRef.current.currentTime)}
+        onLoadedMetadata={() => audioRef.current && setDuration(audioRef.current.duration)}
+        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+        preload="metadata"
+      />
+      <button
+        onClick={toggle}
+        data-testid="button-play-voice-note"
+        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+          isMe ? "bg-white/20 hover:bg-white/35 text-white" : "bg-primary/15 hover:bg-primary/25 text-primary"
+        }`}
+      >
+        {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+      </button>
+
+      <div className="flex-1 flex flex-col gap-1.5">
+        <div className="flex items-end gap-px h-5">
+          {Array.from({ length: bars }).map((_, i) => {
+            const seed = ((i * 7 + 3) % 11) / 11;
+            const h = 30 + seed * 70;
+            const filled = (i / bars) * 100 <= progress;
+            return (
+              <div
+                key={i}
+                className={`flex-1 rounded-full transition-colors ${
+                  filled
+                    ? isMe ? "bg-white" : "bg-primary"
+                    : isMe ? "bg-white/35" : "bg-primary/25"
+                }`}
+                style={{ height: `${h}%` }}
+              />
+            );
+          })}
+        </div>
+        <div className={`text-[10px] font-medium ${isMe ? "text-white/70" : "text-muted-foreground"}`}>
+          {playing ? fmt(currentTime) : fmt(duration || 0)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function fmtRecTime(s: number) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
 function GroupAvatar({ photo, name, size = "md" }: { photo?: string; name: string; size?: "sm" | "md" | "lg" }) {
@@ -270,8 +349,15 @@ function ActiveChat({
   const endRef = useRef<HTMLDivElement>(null);
   const prevMsgCountRef = useRef(0);
   const prevConvIdRef = useRef<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [recordingReady, setRecordingReady] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [, setLocation] = useLocation();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
 
   const conv = conversations.find((c: any) => c.id === conversationId);
   const isGroup = !!conv?.isGroup;
@@ -290,6 +376,66 @@ function ActiveChat({
       endRef.current?.scrollIntoView({ behavior: convChanged ? "instant" : "smooth" });
     }
   }, [messages, conversationId]);
+
+  const startRecording = async () => {
+    if (recording) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/ogg;codecs=opus";
+      const mr = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mr;
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.start(100);
+      setRecording(true);
+      setRecordingReady(false);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((t) => {
+          if (t >= 119) { stopRecordingAndSend(); return t; }
+          return t + 1;
+        });
+      }, 1000);
+    } catch {
+      toast({ title: "Microphone access denied", description: "Please allow mic access to record voice notes.", variant: "destructive" });
+    }
+  };
+
+  const cancelRecording = () => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+    }
+    setRecording(false);
+    setRecordingTime(0);
+    setRecordingReady(false);
+    audioChunksRef.current = [];
+  };
+
+  const stopRecordingAndSend = () => {
+    if (!mediaRecorderRef.current || !recording) return;
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setRecording(false);
+    setRecordingTime(0);
+    mediaRecorderRef.current.onstop = () => {
+      const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+      const blob = new Blob(audioChunksRef.current, { type: mimeType });
+      mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setReplyTo(null);
+        sendMessage.mutate({ conversationId, audioUrl: base64, currentUserId });
+      };
+      reader.readAsDataURL(blob);
+    };
+    mediaRecorderRef.current.stop();
+  };
 
   const handleSend = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -484,6 +630,8 @@ function ActiveChat({
                       <button onClick={() => setEditingMsgId(null)} className="ml-1 opacity-70 hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
                       <button onClick={() => { if (editMsgContent.trim()) editMessage.mutateAsync({ conversationId, messageId: msg.id, content: editMsgContent.trim() }).then(() => setEditingMsgId(null)); }} disabled={editMessage.isPending} className="ml-0.5 opacity-70 hover:opacity-100"><Check className="w-3.5 h-3.5" /></button>
                     </div>
+                  ) : msg.audioUrl ? (
+                    <VoiceNotePlayer audioUrl={msg.audioUrl} isMe={isMe} />
                   ) : (
                     <LinkedText
                       text={msg.content}
@@ -552,24 +700,69 @@ function ActiveChat({
             </div>
           )}
           <div className="p-4">
-            <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
-              <input
-                type="text"
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={isGroup ? "Message the group..." : "Type a message..."}
-                className="flex-1 bg-transparent border-none outline-none text-foreground py-2 text-sm"
-                data-testid="input-message"
-              />
-              <button
-                type="submit"
-                disabled={!content.trim() || sendMessage.isPending}
-                className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:scale-105 transition-transform shadow-md shrink-0"
-                data-testid="button-send-message"
-              >
-                <Send className="w-4 h-4 ml-0.5" />
-              </button>
-            </form>
+            {recording ? (
+              <div className="flex items-center gap-3 bg-secondary rounded-full px-4 py-3">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                  <div className="flex items-end gap-px h-4 flex-1">
+                    {Array.from({ length: 20 }).map((_, i) => {
+                      const h = 30 + ((i * 13 + recordingTime * 7) % 70);
+                      return (
+                        <div key={i} className="flex-1 rounded-full bg-primary/60 transition-all duration-150" style={{ height: `${h}%` }} />
+                      );
+                    })}
+                  </div>
+                  <span className="text-sm font-mono font-bold text-primary shrink-0">{fmtRecTime(recordingTime)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelRecording}
+                  className="w-9 h-9 rounded-full bg-destructive/10 text-destructive flex items-center justify-center hover:bg-destructive/20 transition-colors shrink-0"
+                  data-testid="button-cancel-recording"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={stopRecordingAndSend}
+                  className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors shadow-md shrink-0"
+                  data-testid="button-send-voice-note"
+                >
+                  <Send className="w-4 h-4 ml-0.5" />
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSend} className="flex items-center gap-3 bg-secondary rounded-full px-4 py-2">
+                <input
+                  type="text"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder={isGroup ? "Message the group..." : "Type a message..."}
+                  className="flex-1 bg-transparent border-none outline-none text-foreground py-2 text-sm"
+                  data-testid="input-message"
+                />
+                {content.trim() ? (
+                  <button
+                    type="submit"
+                    disabled={sendMessage.isPending}
+                    className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center disabled:opacity-50 hover:scale-105 transition-transform shadow-md shrink-0"
+                    data-testid="button-send-message"
+                  >
+                    <Send className="w-4 h-4 ml-0.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary/20 transition-colors shrink-0"
+                    data-testid="button-start-recording"
+                    title="Hold to record voice note"
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                )}
+              </form>
+            )}
           </div>
         </div>
       ) : (

@@ -739,10 +739,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       msgExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
 
+    const audioUrl = req.body.audioUrl || null;
+    const msgContent = req.body.content || (audioUrl ? "🎙 Voice note" : "");
     const [msg] = await db.insert(messages).values({
       conversationId: convId,
       senderId: userId,
-      content: req.body.content,
+      content: msgContent,
+      audioUrl,
       replyTo: req.body.replyTo || null,
       expiresAt: msgExpiresAt,
     }).returning();
@@ -750,7 +753,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const others = convo.participants.filter(p => p !== userId);
       const newUnreadBy = [...new Set([...convo.unreadBy, ...others])];
       await db.update(conversations).set({
-        lastMessage: req.body.content,
+        lastMessage: msgContent,
         lastMessageAt: new Date(),
         unreadBy: newUnreadBy,
         updatedAt: new Date(),

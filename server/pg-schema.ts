@@ -50,6 +50,7 @@ export const messages = pgTable("messages", {
   conversationId: text("conversation_id").notNull(),
   senderId: text("sender_id").notNull(),
   content: text("content").notNull(),
+  audioUrl: text("audio_url"),
   isSystem: boolean("is_system").notNull().default(false),
   replyTo: text("reply_to"),
   readBy: text("read_by").array().notNull().default(sql`'{}'::text[]`),

@@ -8,11 +8,14 @@ Key features:
 - User registration/login with JWT authentication
 - Social feed with posts, likes, and comments
 - Friend requests and friend management
-- Direct messaging (conversations)
+- Direct messaging and group chats with disappearing messages
+- Voice notes with MediaRecorder API — waveform visualizer, play/pause, base64 audio stored in DB
 - Notifications system
 - User profile management with avatar support
+- Daily photo stories (expire in 2 hours)
 - Admin dashboard for user management and password reset requests
 - Dark/light mode theming via CSS variables
+- Keep-alive tab navigation (all tabs stay mounted, switched via CSS) for instant switching
 - PWA-ready structure
 
 ## User Preferences
