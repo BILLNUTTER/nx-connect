@@ -333,7 +333,7 @@ export default function ProfilePage() {
         ) : (
           <div className="space-y-3">
             {posts?.map(post => (
-              <OwnPostCard key={post.id} post={post} currentUserId={user.id} />
+              <OwnPostCard key={post.id} post={post} currentUserId={user.id} currentUser={user} />
             ))}
           </div>
         )}
@@ -443,7 +443,7 @@ function ChangePasswordSection() {
   );
 }
 
-function OwnPostCard({ post, currentUserId }: { post: Post; currentUserId?: string }) {
+function OwnPostCard({ post, currentUserId, currentUser }: { post: Post; currentUserId?: string; currentUser?: any }) {
   const [, setLocation] = useLocation();
   const likePost = useLikePost();
   const deletePost = useDeletePost();
@@ -457,16 +457,22 @@ function OwnPostCard({ post, currentUserId }: { post: Post; currentUserId?: stri
       data-testid={`own-post-card-${post.id}`}
     >
       <div className="p-4 pb-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <TimeAgo date={post.createdAt!} />
-            <span>·</span>
-            <Globe className="w-3 h-3" />
-            {isHidden && (
-              <span className="flex items-center gap-1 text-amber-500 font-semibold">
-                <EyeOff className="w-3 h-3" /> Hidden
-              </span>
-            )}
+        {/* Author header — same style as the home feed */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="shrink-0">
+            <Avatar url={currentUser?.profilePicture} name={currentUser?.name || "U"} size="md" online />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-sm text-foreground">{currentUser?.name}</span>
+              {currentUser?.isVerified && <VerifiedBadge size="xs" />}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <TimeAgo date={post.createdAt!} />
+              <span>·</span>
+              <Globe className="w-3 h-3" />
+              {isHidden && <span className="text-amber-500 font-medium ml-1">· Hidden</span>}
+            </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button

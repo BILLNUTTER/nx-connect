@@ -3,7 +3,7 @@ import { useUserProfile, useUserPosts, useSendFriendRequest, useUnfriend, useAut
 import { useAuth } from "@/hooks/use-auth";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
-import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare, EyeOff, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft, UserPlus, UserMinus, UserCheck, Heart, MessageCircle, MessageSquare, EyeOff, Eye, Trash2, Globe } from "lucide-react";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
 import type { Post } from "@shared/schema";
 
@@ -138,25 +138,36 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId?: string 
   const isHidden = (post as any).hidden;
 
   return (
-    <Card className="transition-all hover:shadow-xl hover:border-border">
-      <div className="flex items-start justify-between mb-1">
-        <button
-          onClick={() => setLocation(`/post/${post.id}`)}
-          className="flex-1 text-left"
-          data-testid={`button-open-post-${post.id}`}
-        >
-          <p className="text-lg whitespace-pre-wrap line-clamp-5"><LinkedText text={post.content} /></p>
+    <Card className={`transition-all hover:shadow-xl hover:border-border overflow-hidden ${isHidden ? "border-amber-400/40 bg-amber-50/5" : ""}`} data-testid={`post-card-${post.id}`}>
+      {/* Author header — same style as the home feed */}
+      <div className="flex items-center gap-3 mb-3">
+        <button onClick={() => authorId && setLocation(`/profile/${authorId}`)} className="shrink-0 hover:opacity-80 transition-opacity">
+          <Avatar url={(post.author as any)?.profilePicture} name={post.author?.name || "U"} size="md" online={isOnline((post.author as any)?.lastSeen)} />
         </button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button onClick={() => authorId && setLocation(`/profile/${authorId}`)} className="font-semibold hover:underline text-left text-sm text-foreground">
+              {post.author?.name}
+            </button>
+            {(post.author as any)?.isVerified && <VerifiedBadge size="xs" />}
+          </div>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <TimeAgo date={post.createdAt!} />
+            <span>·</span>
+            <Globe className="w-3 h-3" />
+            {isHidden && <span className="text-amber-500 font-medium ml-1">· Hidden</span>}
+          </div>
+        </div>
         {isOwn && (
-          <div className="flex gap-1 ml-2 shrink-0">
+          <div className="flex gap-1 shrink-0">
             <button
               onClick={() => hidePost.mutate(post.id)}
               disabled={hidePost.isPending}
-              className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+              className={`p-1.5 rounded-lg transition-colors ${isHidden ? "text-amber-500 hover:bg-amber-100/20" : "text-muted-foreground hover:bg-secondary"}`}
               title={isHidden ? "Unhide" : "Hide from public"}
               data-testid={`button-hide-post-${post.id}`}
             >
-              {isHidden ? <Eye className="w-4 h-4 text-amber-500" /> : <EyeOff className="w-4 h-4" />}
+              {isHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
             <button
               onClick={() => { if (confirm("Delete this post?")) deletePost.mutate(post.id); }}
@@ -170,10 +181,23 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId?: string 
           </div>
         )}
       </div>
-      <div className="text-xs text-muted-foreground mb-3 flex items-center gap-2">
-        <TimeAgo date={post.createdAt!} />
-        {isHidden && <span className="text-amber-500 font-semibold">· Hidden from public</span>}
-      </div>
+
+      <button
+        onClick={() => setLocation(`/post/${post.id}`)}
+        className="w-full text-left mb-3"
+        data-testid={`button-open-post-${post.id}`}
+      >
+        {((post as any).content !== "📷" || !(post as any).imageUrl) && (
+          <p className="text-sm whitespace-pre-wrap leading-relaxed line-clamp-5"><LinkedText text={post.content} /></p>
+        )}
+      </button>
+
+      {(post as any).imageUrl && (
+        <div className="rounded-lg overflow-hidden border border-border/40 cursor-pointer mb-3" onClick={() => setLocation(`/post/${post.id}`)}>
+          <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[240px]" />
+        </div>
+      )}
+
       <div className="flex items-center gap-4 pt-3 border-t border-border/50">
         <button
           onClick={(e) => { e.stopPropagation(); likePost.mutate(post.id); }}
@@ -181,7 +205,7 @@ function PostCard({ post, currentUserId }: { post: Post; currentUserId?: string 
           data-testid={`button-like-${post.id}`}
         >
           <Heart className={`w-5 h-5 ${hasLiked ? "fill-current" : ""}`} />
-          {post.likes.length}
+          {post.likes.length > 0 ? post.likes.length : ""} {post.likes.length === 1 ? "Like" : "Likes"}
         </button>
         <button
           onClick={() => setLocation(`/post/${post.id}`)}
