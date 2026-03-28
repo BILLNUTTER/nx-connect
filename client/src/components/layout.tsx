@@ -7,6 +7,7 @@ import { useConversations } from "@/hooks/use-chats";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 import { Avatar, isOnline } from "@/components/ui/shared";
+import { queryClient } from "@/lib/queryClient";
 
 function useTheme() {
   const [isDark, setIsDark] = useState(() => {
@@ -233,6 +234,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const prefetchTab = useCallback((href: string) => {
+    if (href.startsWith("/home")) {
+      queryClient.prefetchQuery({ queryKey: ["/api/posts"], staleTime: 60_000 });
+    } else if (href.startsWith("/friends")) {
+      queryClient.prefetchQuery({ queryKey: ["/api/friends"], staleTime: 60_000 });
+      queryClient.prefetchQuery({ queryKey: ["/api/users/requests"], staleTime: 60_000 });
+    } else if (href.startsWith("/chats")) {
+      queryClient.prefetchQuery({ queryKey: ["/api/chats"], staleTime: 60_000 });
+    } else if (href.startsWith("/notifications")) {
+      queryClient.prefetchQuery({ queryKey: ["/api/notifications"], staleTime: 60_000 });
+    }
+  }, []);
+
   if (!user) return <>{children}</>;
 
   const navItems = [
@@ -321,7 +335,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={matchPath}
                   href={item.href}
-                  className={`relative flex-1 flex items-center justify-center py-2.5 transition-all duration-200 border-b-2 ${
+                  onMouseEnter={() => prefetchTab(matchPath)}
+                  onTouchStart={() => prefetchTab(matchPath)}
+                  className={`relative flex-1 flex items-center justify-center py-2.5 transition-colors border-b-2 ${
                     isActive
                       ? "text-primary border-primary"
                       : "text-muted-foreground hover:text-foreground border-transparent hover:bg-secondary/30"
@@ -331,7 +347,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 >
                   <item.icon className={`w-5 h-5 ${isActive ? "fill-primary/15" : ""}`} />
                   {item.badge > 0 && (
-                    <span className="absolute top-1.5 right-1/4 min-w-[16px] h-[16px] bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full px-1 shadow-sm animate-in zoom-in">
+                    <span className="absolute top-1.5 right-1/4 min-w-[16px] h-[16px] bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full px-1 shadow-sm">
                       {item.badge > 9 ? "9+" : item.badge}
                     </span>
                   )}
@@ -342,7 +358,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className={`flex-1 w-full max-w-4xl mx-auto animate-in ${location.startsWith('/chats') || location.startsWith('/friends') ? "p-4 overflow-hidden" : "p-4"}`}>
+      <main className={`flex-1 w-full max-w-4xl mx-auto flex flex-col ${location.startsWith('/chats') || location.startsWith('/friends') ? "overflow-hidden p-4" : "p-4"}`}>
         {children}
       </main>
 
