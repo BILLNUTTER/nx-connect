@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost } from "@/hooks/use-posts";
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
@@ -67,15 +67,17 @@ function StoriesBar() {
   const { user } = useAuth();
   const { data: photos } = usePhotos();
   const { data: myToday } = useMyTodayPhoto();
-  const [viewPhoto, setViewPhoto] = useState<DailyPhoto | null>(null);
+  const [viewState, setViewState] = useState<{ photos: DailyPhoto[]; startIndex: number } | null>(null);
   const [showAddPhoto, setShowAddPhoto] = useState(false);
+
+  const friendPhotos = photos?.filter(p => p.author?.id !== user?.id) ?? [];
 
   return (
     <>
       <div className="bg-card border border-border rounded-xl shadow-sm p-3" data-testid="stories-bar">
         <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
           <div className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer" onClick={() => {
-            if (myToday?.hasPosted && myToday.photo) setViewPhoto(myToday.photo);
+            if (myToday?.hasPosted && myToday.photo) setViewState({ photos: [myToday.photo], startIndex: 0 });
             else setShowAddPhoto(true);
           }} data-testid="button-add-story">
             <div className="relative">
@@ -99,11 +101,11 @@ function StoriesBar() {
             </span>
           </div>
 
-          {photos?.filter(p => p.author?.id !== user?.id).map(photo => (
+          {friendPhotos.map((photo, i) => (
             <div
               key={photo.id}
               className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer"
-              onClick={() => setViewPhoto(photo)}
+              onClick={() => setViewState({ photos: friendPhotos, startIndex: i })}
               data-testid={`button-view-story-${photo.id}`}
             >
               <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-primary ring-2 ring-primary/20">
@@ -115,7 +117,7 @@ function StoriesBar() {
             </div>
           ))}
 
-          {(!photos || photos.filter(p => p.author?.id !== user?.id).length === 0) && !myToday?.hasPosted && (
+          {friendPhotos.length === 0 && !myToday?.hasPosted && (
             <div className="flex items-center text-xs text-muted-foreground px-2 py-4">
               No stories yet — be the first!
             </div>
@@ -123,94 +125,159 @@ function StoriesBar() {
         </div>
       </div>
 
-      {viewPhoto && <StoryViewer photo={viewPhoto} onClose={() => setViewPhoto(null)} />}
+      {viewState && (
+        <StoryViewer
+          photos={viewState.photos}
+          startIndex={viewState.startIndex}
+          onClose={() => setViewState(null)}
+        />
+      )}
       {showAddPhoto && <AddPhotoModal onClose={() => setShowAddPhoto(false)} />}
     </>
   );
 }
 
-function StoryViewer({ photo, onClose }: { photo: DailyPhoto; onClose: () => void }) {
+function StoryViewer({ photos, startIndex, onClose }: {
+  photos: DailyPhoto[];
+  startIndex: number;
+  onClose: () => void;
+}) {
   const [, setLocation] = useLocation();
-  const [progress, setProgress] = useState(100);
-  const DURATION = 4000;
-  const expiresAt = photo.expiresAt ? new Date(photo.expiresAt) : null;
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
+  const [progress, setProgress] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const DURATION = 5000;
+
+  const photo = photos[currentIndex];
+  const expiresAt = photo?.expiresAt ? new Date(photo.expiresAt) : null;
   const hoursLeft = expiresAt ? Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 3600000)) : null;
 
+  const goNext = useCallback(() => {
+    if (currentIndex < photos.length - 1) {
+      setCurrentIndex(i => i + 1);
+    } else {
+      onClose();
+    }
+  }, [currentIndex, photos.length, onClose]);
+
+  const goPrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex(i => i - 1);
+    }
+  }, [currentIndex]);
+
+  // Reset progress bar when story changes
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    setProgress(0);
+  }, [currentIndex]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, goNext, goPrev]);
 
+  // Progress animation + auto-advance
   useEffect(() => {
+    if (paused) return;
     const start = performance.now();
     let raf: number;
     const tick = (now: number) => {
       const elapsed = now - start;
-      const remaining = Math.max(0, 100 - (elapsed / DURATION) * 100);
-      setProgress(remaining);
+      const pct = Math.min(100, (elapsed / DURATION) * 100);
+      setProgress(pct);
       if (elapsed < DURATION) {
         raf = requestAnimationFrame(tick);
       } else {
-        onClose();
+        goNext();
       }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [onClose]);
+  }, [currentIndex, paused, goNext]);
+
+  if (!photo) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-      data-testid="story-viewer"
-    >
-      <div className="relative max-w-sm w-full">
-        <button
-          onClick={onClose}
-          className="absolute -top-10 right-0 text-white/70 hover:text-white transition-colors"
-          data-testid="button-close-story"
-        >
-          <X className="w-6 h-6" />
-        </button>
+    <div className="fixed inset-0 z-[60] bg-black" data-testid="story-viewer">
+      {/* Background image — fills entire screen */}
+      <img
+        src={photo.imageUrl}
+        alt={photo.caption || "Story"}
+        className="absolute inset-0 w-full h-full object-cover"
+        data-testid="story-image"
+      />
 
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-          <div className="absolute top-0 left-0 right-0 z-10 px-2 pt-2">
-            <div className="w-full h-1 bg-white/30 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full"
-                style={{ width: `${progress}%` }}
-                data-testid="story-progress-bar"
-              />
-            </div>
+      {/* Dark gradient overlays */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 pointer-events-none" />
+
+      {/* Progress bars row */}
+      <div className="absolute top-0 left-0 right-0 z-10 flex gap-1 px-3 pt-3 pb-1">
+        {photos.map((_, i) => (
+          <div key={i} className="flex-1 h-[3px] bg-white/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white rounded-full transition-none"
+              style={{
+                width: i < currentIndex ? "100%" : i === currentIndex ? `${progress}%` : "0%",
+              }}
+            />
           </div>
-          <img src={photo.imageUrl} alt={photo.caption || "Story"} className="w-full object-cover max-h-[75vh]" />
+        ))}
+      </div>
 
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
-                className="hover:opacity-80 transition-opacity"
-              >
-                <Avatar url={photo.author?.profilePicture} name={photo.author?.name || "U"} size="sm" online={isOnline((photo.author as any)?.lastSeen)} />
-              </button>
-              <div>
-                <button
-                  onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
-                  className="text-white font-semibold text-sm hover:underline block"
-                >
-                  {photo.author?.name}
-                </button>
-                {hoursLeft !== null && (
-                  <span className="text-white/60 text-xs">{hoursLeft}h left</span>
-                )}
-              </div>
-            </div>
-            {photo.caption && (
-              <p className="text-white text-sm leading-relaxed">{photo.caption}</p>
+      {/* Author info + close button */}
+      <div className="absolute top-7 left-0 right-0 z-10 flex items-center justify-between px-4 pt-2">
+        <button
+          className="flex items-center gap-2"
+          onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
+        >
+          <Avatar url={photo.author?.profilePicture} name={photo.author?.name || "U"} size="sm" online={isOnline((photo.author as any)?.lastSeen)} />
+          <div className="text-left">
+            <div className="text-white font-semibold text-sm leading-tight drop-shadow">{photo.author?.name}</div>
+            {hoursLeft !== null && (
+              <div className="text-white/60 text-xs">{hoursLeft}h left</div>
             )}
           </div>
+        </button>
+        <button
+          onClick={onClose}
+          className="text-white/80 hover:text-white transition-colors p-1"
+          data-testid="button-close-story"
+        >
+          <X className="w-6 h-6 drop-shadow" />
+        </button>
+      </div>
+
+      {/* Caption */}
+      {photo.caption && (
+        <div className="absolute bottom-10 left-0 right-0 z-10 px-5">
+          <p className="text-white text-sm leading-relaxed drop-shadow">{photo.caption}</p>
         </div>
+      )}
+
+      {/* Tap zones: left half = previous, right half = next/close */}
+      <div className="absolute inset-0 flex z-20" style={{ top: "80px", bottom: "80px" }}>
+        <div
+          className="flex-1 cursor-pointer"
+          onClick={goPrev}
+          onMouseDown={() => setPaused(true)}
+          onMouseUp={() => setPaused(false)}
+          onTouchStart={() => setPaused(true)}
+          onTouchEnd={() => { setPaused(false); }}
+        />
+        <div
+          className="flex-1 cursor-pointer"
+          onClick={goNext}
+          onMouseDown={() => setPaused(true)}
+          onMouseUp={() => setPaused(false)}
+          onTouchStart={() => setPaused(true)}
+          onTouchEnd={() => { setPaused(false); }}
+        />
       </div>
     </div>
   );
