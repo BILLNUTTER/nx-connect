@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { formatDistanceToNow } from "date-fns";
-import { BadgeCheck } from "lucide-react";
 
 export function isOnline(lastSeen?: string | Date | null): boolean {
   if (!lastSeen) return false;
@@ -174,11 +173,28 @@ export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string
 }
 
 export function VerifiedBadge({ size = "sm", gold = false }: { size?: "xs" | "sm" | "md"; gold?: boolean }) {
-  const sizeMap = { xs: "w-3 h-3", sm: "w-4 h-4", md: "w-5 h-5" };
+  const sizeMap = { xs: 12, sm: 16, md: 20 };
+  const px = sizeMap[size];
+  const bg = gold ? "#F59E0B" : "#1877F2";
   return (
-    <BadgeCheck
-      className={`${sizeMap[size]} shrink-0 ${gold ? "text-amber-400 fill-amber-400" : "text-blue-500 fill-blue-500"}`}
+    <svg
+      width={px}
+      height={px}
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="shrink-0 inline-block"
       title={gold ? "Official NX-Connect account" : "Verified account"}
-    />
+      aria-label={gold ? "Official account" : "Verified account"}
+    >
+      <circle cx="10" cy="10" r="10" fill={bg} />
+      <path
+        d="M6 10.5L8.5 13L14 7.5"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
