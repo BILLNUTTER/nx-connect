@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { apiFetch, parseWithLogging, setAuthToken, removeAuthToken } from "@/lib/api";
+import { clearCache } from "@/lib/cache-persist";
 import { z } from "zod";
 
 export function useAuth() {
@@ -32,6 +33,8 @@ export function useAuth() {
     },
     onSuccess: (userData) => {
       queryClient.setQueryData([api.auth.me.path], userData);
+      queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
     },
   });
 
@@ -47,11 +50,14 @@ export function useAuth() {
     },
     onSuccess: (userData) => {
       queryClient.setQueryData([api.auth.me.path], userData);
+      queryClient.invalidateQueries({ queryKey: [api.posts.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
     },
   });
 
   const logout = () => {
     removeAuthToken();
+    clearCache();
     queryClient.setQueryData([api.auth.me.path], null);
     queryClient.clear();
     window.location.href = "/";
