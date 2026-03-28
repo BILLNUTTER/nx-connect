@@ -4,7 +4,7 @@ import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, use
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox } from "@/components/ui/shared";
 import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight, Download } from "lucide-react";
 
 export default function PostPage() {
@@ -24,6 +24,7 @@ export default function PostPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [replyingTo, setReplyingTo] = useState<{ id: string; name: string } | null>(null);
   const [replyContent, setReplyContent] = useState("");
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto space-y-4 py-4">
@@ -178,25 +179,29 @@ export default function PostPage() {
         )}
         {(post as any).imageUrl && (
           <div className="relative mb-6 rounded-2xl overflow-hidden border border-border/50 group/img">
-            <img src={(post as any).imageUrl} alt="Post" className="w-full object-cover max-h-[500px]" data-testid="img-post-detail" />
+            <img
+              src={(post as any).imageUrl}
+              alt="Post"
+              className="w-full object-cover max-h-[500px] cursor-pointer"
+              onClick={() => setLightboxSrc((post as any).imageUrl)}
+              data-testid="img-post-detail"
+            />
             {(post as any).expiresAt && (
               <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-3 py-1 rounded-full flex items-center gap-1.5">
                 <span>⏳ Expires <TimeAgo date={(post as any).expiresAt} /></span>
               </div>
             )}
-            <a
-              href={(post as any).imageUrl}
-              download={`nx-photo-${post.id}.jpg`}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              onClick={() => setLightboxSrc((post as any).imageUrl)}
               className="absolute bottom-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1.5 flex items-center gap-1.5 text-xs font-semibold opacity-0 group-hover/img:opacity-100 transition-opacity"
-              title="Save photo to gallery"
+              title="View full photo"
               data-testid="button-save-photo-detail"
             >
-              <Download className="w-3.5 h-3.5" /> Save Photo
-            </a>
+              <Download className="w-3.5 h-3.5" /> View Full
+            </button>
           </div>
         )}
+        {lightboxSrc && <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
         <div className="flex items-center gap-4 pt-4 border-t border-border/50">
           <button

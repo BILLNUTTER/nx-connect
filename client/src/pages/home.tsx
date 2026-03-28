@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost } from "@/hooks/use-posts";
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox } from "@/components/ui/shared";
 import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post, DailyPhoto } from "@shared/schema";
@@ -699,6 +699,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
   const hidePost = useHidePost();
   const prefetchPost = usePrefetchPost();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const hasLiked = post.likes.includes(currentUserId || "");
   const authorId = (post.author as any)?.id || (post.authorId as any)?.id || (post.authorId as any)?._id;
@@ -823,7 +824,8 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
               src={(post as any).imageUrl}
               alt="Post"
               className="w-full object-cover max-h-[420px] cursor-pointer"
-              onClick={() => setLocation(`/post/${post.id}`)}
+              onClick={() => setLightboxSrc((post as any).imageUrl)}
+              data-testid={`button-open-photo-${post.id}`}
             />
             {(post as any).expiresAt && (
               <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -831,20 +833,17 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
                 <span>Expires in <TimeAgo date={(post as any).expiresAt} /></span>
               </div>
             )}
-            <a
-              href={(post as any).imageUrl}
-              download={`nx-photo-${post.id}.jpg`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={e => e.stopPropagation()}
+            <button
+              onClick={e => { e.stopPropagation(); setLightboxSrc((post as any).imageUrl); }}
               className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1.5 opacity-0 group-hover/img:opacity-100 transition-opacity"
-              title="Save photo"
+              title="View full photo"
               data-testid={`button-save-photo-${post.id}`}
             >
               <Download className="w-3.5 h-3.5" />
-            </a>
+            </button>
           </div>
         )}
+        {lightboxSrc && <PhotoLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
 
         {(post.likes.length > 0 || (post as any).commentCount > 0) && (
           <div className="mt-3 flex items-center justify-between">

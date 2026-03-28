@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 
 export function isOnline(lastSeen?: string | Date | null): boolean {
@@ -113,5 +113,53 @@ export function LinkedText({ text, className, linkClassName }: {
         return <span key={i}>{part}</span>;
       })}
     </span>
+  );
+}
+
+export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] bg-black flex items-center justify-center"
+      onClick={onClose}
+      data-testid="photo-lightbox"
+    >
+      <button
+        className="absolute top-4 right-4 z-10 text-white/80 hover:text-white bg-black/40 rounded-full p-2 transition-colors"
+        onClick={onClose}
+        data-testid="button-close-lightbox"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <a
+        href={src}
+        download
+        target="_blank"
+        rel="noreferrer"
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-5 right-5 z-10 bg-black/50 hover:bg-black/70 text-white rounded-full px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-colors"
+        data-testid="button-download-lightbox"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Save
+      </a>
+      <img
+        src={src}
+        alt={alt || "Photo"}
+        className="max-w-full max-h-full object-contain select-none"
+        onClick={e => e.stopPropagation()}
+        data-testid="lightbox-image"
+        style={{ maxHeight: "100dvh", maxWidth: "100dvw" }}
+      />
+    </div>
   );
 }
