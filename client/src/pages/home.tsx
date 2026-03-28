@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost } from "@/hooks/use-posts";
 import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
@@ -171,7 +172,7 @@ function StoryViewer({ photos, startIndex, onClose }: {
     setProgress(0);
   }, [currentIndex]);
 
-  // Keyboard navigation
+  // Keyboard navigation + scroll lock
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -179,7 +180,18 @@ function StoryViewer({ photos, startIndex, onClose }: {
       if (e.key === "ArrowLeft") goPrev();
     };
     document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
+    // Lock scroll without page jump
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
   }, [onClose, goNext, goPrev]);
 
   // Progress animation + auto-advance
@@ -203,8 +215,8 @@ function StoryViewer({ photos, startIndex, onClose }: {
 
   if (!photo) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center" data-testid="story-viewer">
+  return createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} data-testid="story-viewer">
       {/* Phone-frame story panel: full-screen on mobile, 9:16 centered column on desktop */}
       <div
         className="relative bg-black overflow-hidden w-full h-full sm:rounded-2xl sm:shadow-2xl sm:h-[95vh]"
@@ -285,7 +297,8 @@ function StoryViewer({ photos, startIndex, onClose }: {
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
