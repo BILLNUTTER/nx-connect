@@ -204,80 +204,86 @@ function StoryViewer({ photos, startIndex, onClose }: {
   if (!photo) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black" data-testid="story-viewer">
-      {/* Background image — fills entire screen */}
-      <img
-        src={photo.imageUrl}
-        alt={photo.caption || "Story"}
-        className="absolute inset-0 w-full h-full object-contain"
-        data-testid="story-image"
-      />
+    <div className="fixed inset-0 z-[60] bg-black flex items-center justify-center" data-testid="story-viewer">
+      {/* Phone-frame story panel: full-screen on mobile, 9:16 centered column on desktop */}
+      <div
+        className="relative bg-black overflow-hidden w-full h-full sm:rounded-2xl sm:shadow-2xl sm:h-[95vh]"
+        style={{ maxWidth: 'min(calc(95vh * 9 / 16), 100vw)' }}
+      >
+        {/* Story image — fills frame, object-cover for proper story feel */}
+        <img
+          src={photo.imageUrl}
+          alt={photo.caption || "Story"}
+          className="absolute inset-0 w-full h-full object-contain bg-black"
+          data-testid="story-image"
+        />
 
-      {/* Dark gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 pointer-events-none" />
+        {/* Dark gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/60 pointer-events-none" />
 
-      {/* Progress bars row */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex gap-1 px-3 pt-3 pb-1">
-        {photos.map((_, i) => (
-          <div key={i} className="flex-1 h-[3px] bg-white/30 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white rounded-full transition-none"
-              style={{
-                width: i < currentIndex ? "100%" : i === currentIndex ? `${progress}%` : "0%",
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Author info + close button */}
-      <div className="absolute top-7 left-0 right-0 z-10 flex items-center justify-between px-4 pt-2">
-        <button
-          className="flex items-center gap-2"
-          onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
-        >
-          <Avatar url={photo.author?.profilePicture} name={photo.author?.name || "U"} size="sm" online={isOnline((photo.author as any)?.lastSeen)} />
-          <div className="text-left">
-            <div className="text-white font-semibold text-sm leading-tight drop-shadow">{photo.author?.name}</div>
-            {hoursLeft !== null && (
-              <div className="text-white/60 text-xs">{hoursLeft}h left</div>
-            )}
-          </div>
-        </button>
-        <button
-          onClick={onClose}
-          className="text-white/80 hover:text-white transition-colors p-1"
-          data-testid="button-close-story"
-        >
-          <X className="w-6 h-6 drop-shadow" />
-        </button>
-      </div>
-
-      {/* Caption */}
-      {photo.caption && (
-        <div className="absolute bottom-10 left-0 right-0 z-10 px-5">
-          <p className="text-white text-sm leading-relaxed drop-shadow">{photo.caption}</p>
+        {/* Progress bars row */}
+        <div className="absolute top-0 left-0 right-0 z-10 flex gap-1 px-3 pt-3 pb-1">
+          {photos.map((_, i) => (
+            <div key={i} className="flex-1 h-[3px] bg-white/30 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white rounded-full transition-none"
+                style={{
+                  width: i < currentIndex ? "100%" : i === currentIndex ? `${progress}%` : "0%",
+                }}
+              />
+            </div>
+          ))}
         </div>
-      )}
 
-      {/* Tap zones: left half = previous, right half = next/close */}
-      <div className="absolute inset-0 flex z-20" style={{ top: "80px", bottom: "80px" }}>
-        <div
-          className="flex-1 cursor-pointer"
-          onClick={goPrev}
-          onMouseDown={() => setPaused(true)}
-          onMouseUp={() => setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-          onTouchEnd={() => { setPaused(false); }}
-        />
-        <div
-          className="flex-1 cursor-pointer"
-          onClick={goNext}
-          onMouseDown={() => setPaused(true)}
-          onMouseUp={() => setPaused(false)}
-          onTouchStart={() => setPaused(true)}
-          onTouchEnd={() => { setPaused(false); }}
-        />
+        {/* Author info + close button */}
+        <div className="absolute top-7 left-0 right-0 z-10 flex items-center justify-between px-4 pt-2">
+          <button
+            className="flex items-center gap-2"
+            onClick={() => { onClose(); setLocation(`/profile/${photo.author?.id}`); }}
+          >
+            <Avatar url={photo.author?.profilePicture} name={photo.author?.name || "U"} size="sm" online={isOnline((photo.author as any)?.lastSeen)} />
+            <div className="text-left">
+              <div className="text-white font-semibold text-sm leading-tight drop-shadow">{photo.author?.name}</div>
+              {hoursLeft !== null && (
+                <div className="text-white/60 text-xs">{hoursLeft}h left</div>
+              )}
+            </div>
+          </button>
+          <button
+            onClick={onClose}
+            className="text-white/80 hover:text-white transition-colors p-1"
+            data-testid="button-close-story"
+          >
+            <X className="w-6 h-6 drop-shadow" />
+          </button>
+        </div>
+
+        {/* Caption */}
+        {photo.caption && (
+          <div className="absolute bottom-10 left-0 right-0 z-10 px-5">
+            <p className="text-white text-sm leading-relaxed drop-shadow">{photo.caption}</p>
+          </div>
+        )}
+
+        {/* Tap zones: left half = previous, right half = next/close */}
+        <div className="absolute inset-0 flex z-20" style={{ top: "80px", bottom: "80px" }}>
+          <div
+            className="flex-1 cursor-pointer"
+            onClick={goPrev}
+            onMouseDown={() => setPaused(true)}
+            onMouseUp={() => setPaused(false)}
+            onTouchStart={() => setPaused(true)}
+            onTouchEnd={() => { setPaused(false); }}
+          />
+          <div
+            className="flex-1 cursor-pointer"
+            onClick={goNext}
+            onMouseDown={() => setPaused(true)}
+            onMouseUp={() => setPaused(false)}
+            onTouchStart={() => setPaused(true)}
+            onTouchEnd={() => { setPaused(false); }}
+          />
+        </div>
       </div>
     </div>
   );
