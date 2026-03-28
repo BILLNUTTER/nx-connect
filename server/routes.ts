@@ -35,6 +35,7 @@ async function getUserMap(ids: string[], fields?: (keyof typeof users)[]) {
     username: users.username,
     profilePicture: users.profilePicture,
     lastSeen: users.lastSeen,
+    isVerified: users.isVerified,
   }).from(users).where(inArray(users.id, unique));
   return Object.fromEntries(rows.map(r => [r.id, r])) as Record<string, any>;
 }
@@ -965,8 +966,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const allUsers = await db.select({
       id: users.id, name: users.name, username: users.username,
       email: users.email, phone: users.phone, profilePicture: users.profilePicture,
-      coverPhoto: users.coverPhoto, isAdmin: users.isAdmin, status: users.status,
-      lastSeen: users.lastSeen, friends: users.friends, createdAt: users.createdAt,
+      coverPhoto: users.coverPhoto, isAdmin: users.isAdmin, isVerified: users.isVerified,
+      status: users.status, lastSeen: users.lastSeen, friends: users.friends, createdAt: users.createdAt,
     }).from(users).where(ne(users.username, 'nx-connect'));
     res.status(200).json(allUsers);
   });
@@ -983,6 +984,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       .where(eq(users.id, req.params.id)).returning();
     if (!user) return res.status(404).json({ message: "User not found" });
     res.status(200).json(safeUser(user));
+  });
+
+  app.patch(api.admin.verifyUser.path, adminOnly, async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const [existing] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (!existing) return res.status(404).json({ message: "User not found" });
+    const [updated] = await db.update(users).set({ isVerified: !existing.isVerified, updatedAt: new Date() })
+      .where(eq(users.id, id)).returning();
+    res.status(200).json(safeUser(updated));
   });
 
   app.delete(api.admin.deleteUser.path, adminOnly, async (req: Request, res: Response) => {
@@ -1233,6 +1243,17 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }).returning();
     const authorMap = await getUserMap([userId]);
     res.status(201).json({ ...photo, author: authorMap[userId] });
+  });
+
+  app.delete('/api/photos/:id', authenticate, async (req: Request, res: Response) => {
+    const userId = (req as any).userId;
+    const { id } = req.params;
+    const [photo] = await db.select().from(dailyPhotos).where(eq(dailyPhotos.id, id)).limit(1);
+    if (!photo) return res.status(404).json({ message: "Photo not found" });
+    const reqUser = await getUserById(userId);
+    if (photo.authorId !== userId && !reqUser?.isAdmin) return res.status(403).json({ message: "Forbidden" });
+    await db.delete(dailyPhotos).where(eq(dailyPhotos.id, id));
+    res.json({ success: true });
   });
 
   return httpServer;

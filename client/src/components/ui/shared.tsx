@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { formatDistanceToNow } from "date-fns";
+import { BadgeCheck } from "lucide-react";
 
 export function isOnline(lastSeen?: string | Date | null): boolean {
   if (!lastSeen) return false;
@@ -169,5 +170,15 @@ export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string
       />
     </div>,
     document.body
+  );
+}
+
+export function VerifiedBadge({ size = "sm", gold = false }: { size?: "xs" | "sm" | "md"; gold?: boolean }) {
+  const sizeMap = { xs: "w-3 h-3", sm: "w-4 h-4", md: "w-5 h-5" };
+  return (
+    <BadgeCheck
+      className={`${sizeMap[size]} shrink-0 ${gold ? "text-amber-400 fill-amber-400" : "text-blue-500 fill-blue-500"}`}
+      title={gold ? "Official NX-Connect account" : "Verified account"}
+    />
   );
 }

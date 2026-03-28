@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   profilePicture: text("profile_picture").notNull().default(""),
   coverPhoto: text("cover_photo").notNull().default(""),
   isAdmin: boolean("is_admin").notNull().default(false),
+  isVerified: boolean("is_verified").notNull().default(false),
   status: text("status").notNull().default("active"),
   lastSeen: timestamp("last_seen"),
   friends: text("friends").array().notNull().default(sql`'{}'::text[]`),

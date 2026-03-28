@@ -27,3 +27,14 @@ export function useCreatePhoto() {
     },
   });
 }
+
+export function useDeletePhoto() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch(`/api/photos/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos/my-today"] });
+    },
+  });
+}

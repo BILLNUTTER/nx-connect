@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useUserPosts } from "@/hooks/use-users";
 import { useLikePost, useDeletePost, useHidePost } from "@/hooks/use-posts";
-import { Card, Button, Input, Avatar, TimeAgo, LinkedText } from "@/components/ui/shared";
+import { Card, Button, Input, Avatar, TimeAgo, LinkedText, VerifiedBadge } from "@/components/ui/shared";
 import { Camera, LogOut, Pencil, X, User, AtSign, Phone, Mail, Users, Eye, EyeOff, Trash2, ThumbsUp, MessageCircle, Globe, ImagePlus, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/api";
@@ -193,7 +193,10 @@ export default function ProfilePage() {
 
           {!isEditing ? (
             <>
-              <h2 className="text-2xl font-bold">{user.name}</h2>
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                {user.name}
+                {(user as any).isVerified && <VerifiedBadge size="md" />}
+              </h2>
               <p className="text-primary font-medium">@{user.username}</p>
               <p className="text-xs text-muted-foreground mt-1">Tap the cover or avatar to change photos from your gallery</p>
             </>

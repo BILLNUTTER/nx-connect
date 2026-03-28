@@ -2,9 +2,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { usePosts, useCreatePost, useLikePost, useDeletePost, useHidePost, usePrefetchPost, useEditPost } from "@/hooks/use-posts";
-import { usePhotos, useMyTodayPhoto, useCreatePhoto } from "@/hooks/use-photos";
+import { usePhotos, useMyTodayPhoto, useCreatePhoto, useDeletePhoto } from "@/hooks/use-photos";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox, VerifiedBadge } from "@/components/ui/shared";
 import { Heart, MessageCircle, ThumbsUp, Globe, MoreHorizontal, Trash2, EyeOff, Eye, Camera, X, Image, Send, Download, Pencil, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Post, DailyPhoto } from "@shared/schema";
@@ -71,18 +71,40 @@ function StoriesBar() {
   const [viewState, setViewState] = useState<{ photos: DailyPhoto[]; startIndex: number } | null>(null);
   const [showAddPhoto, setShowAddPhoto] = useState(false);
 
+  const storageKey = user?.id ? `nx_viewed_stories_${user.id}` : null;
+  const [viewedIds, setViewedIds] = useState<Set<string>>(() => {
+    if (!storageKey) return new Set();
+    try { return new Set(JSON.parse(localStorage.getItem(storageKey) || "[]")); } catch { return new Set(); }
+  });
+
+  const markViewed = (ids: string[]) => {
+    setViewedIds(prev => {
+      const next = new Set([...prev, ...ids]);
+      if (storageKey) localStorage.setItem(storageKey, JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   const friendPhotos = photos?.filter(p => p.author?.id !== user?.id) ?? [];
+
+  const openStories = (photoList: DailyPhoto[], idx: number) => {
+    setViewState({ photos: photoList, startIndex: idx });
+    markViewed(photoList.map(p => p.id!));
+  };
 
   return (
     <>
       <div className="bg-card border border-border rounded-xl shadow-sm p-3" data-testid="stories-bar">
         <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
           <div className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer" onClick={() => {
-            if (myToday?.hasPosted && myToday.photo) setViewState({ photos: [myToday.photo], startIndex: 0 });
+            if (myToday?.hasPosted && myToday.photo) openStories([myToday.photo], 0);
             else setShowAddPhoto(true);
           }} data-testid="button-add-story">
             <div className="relative">
-              <div className={`w-16 h-16 rounded-full overflow-hidden border-3 ${myToday?.hasPosted ? "border-primary ring-2 ring-primary/30" : "border-dashed border-border"}`} style={{ borderWidth: myToday?.hasPosted ? 3 : 2, borderStyle: myToday?.hasPosted ? "solid" : "dashed" }}>
+              <div
+                className={`w-16 h-16 rounded-full overflow-hidden`}
+                style={{ border: myToday?.hasPosted ? "3px solid var(--color-primary, #7c3aed)" : "2px dashed var(--border)" }}
+              >
                 {myToday?.hasPosted && myToday.photo ? (
                   <img src={myToday.photo.imageUrl} alt="My story" className="w-full h-full object-cover" />
                 ) : (
@@ -102,21 +124,30 @@ function StoriesBar() {
             </span>
           </div>
 
-          {friendPhotos.map((photo, i) => (
-            <div
-              key={photo.id}
-              className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer"
-              onClick={() => setViewState({ photos: friendPhotos, startIndex: i })}
-              data-testid={`button-view-story-${photo.id}`}
-            >
-              <div className="w-16 h-16 rounded-full overflow-hidden border-[3px] border-primary ring-2 ring-primary/20">
-                <img src={photo.imageUrl} alt={photo.author?.name} className="w-full h-full object-cover" />
+          {friendPhotos.map((photo, i) => {
+            const isViewed = viewedIds.has(photo.id!);
+            return (
+              <div
+                key={photo.id}
+                className="shrink-0 flex flex-col items-center gap-1.5 cursor-pointer"
+                onClick={() => openStories(friendPhotos, i)}
+                data-testid={`button-view-story-${photo.id}`}
+              >
+                <div
+                  className="w-16 h-16 rounded-full overflow-hidden"
+                  style={{
+                    border: isViewed ? "3px solid #9ca3af" : "3px solid #22c55e",
+                    boxShadow: isViewed ? "none" : "0 0 0 2px rgba(34,197,94,0.25)",
+                  }}
+                >
+                  <img src={photo.imageUrl} alt={photo.author?.name} className="w-full h-full object-cover" />
+                </div>
+                <span className="text-[11px] font-medium text-foreground truncate max-w-[64px]">
+                  {photo.author?.name?.split(" ")[0]}
+                </span>
               </div>
-              <span className="text-[11px] font-medium text-foreground truncate max-w-[64px]">
-                {photo.author?.name?.split(" ")[0]}
-              </span>
-            </div>
-          ))}
+            );
+          })}
 
           {friendPhotos.length === 0 && !myToday?.hasPosted && (
             <div className="flex items-center text-xs text-muted-foreground px-2 py-4">
@@ -130,6 +161,7 @@ function StoriesBar() {
         <StoryViewer
           photos={viewState.photos}
           startIndex={viewState.startIndex}
+          currentUserId={user?.id}
           onClose={() => setViewState(null)}
         />
       )}
@@ -138,12 +170,15 @@ function StoriesBar() {
   );
 }
 
-function StoryViewer({ photos, startIndex, onClose }: {
+function StoryViewer({ photos, startIndex, currentUserId, onClose }: {
   photos: DailyPhoto[];
   startIndex: number;
+  currentUserId?: string;
   onClose: () => void;
 }) {
   const [, setLocation] = useLocation();
+  const deletePhoto = useDeletePhoto();
+  const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(startIndex);
   const [progress, setProgress] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -247,7 +282,7 @@ function StoryViewer({ photos, startIndex, onClose }: {
           ))}
         </div>
 
-        {/* Author info + close button */}
+        {/* Author info + actions */}
         <div className="absolute top-7 left-0 right-0 z-10 flex items-center justify-between px-4 pt-2">
           <button
             className="flex items-center gap-2"
@@ -261,13 +296,31 @@ function StoryViewer({ photos, startIndex, onClose }: {
               )}
             </div>
           </button>
-          <button
-            onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors p-1"
-            data-testid="button-close-story"
-          >
-            <X className="w-6 h-6 drop-shadow" />
-          </button>
+          <div className="flex items-center gap-2">
+            {photo.author?.id === currentUserId && (
+              <button
+                onClick={async () => {
+                  if (!confirm("Delete your story?")) return;
+                  await deletePhoto.mutateAsync(photo.id!);
+                  toast({ title: "Story deleted" });
+                  onClose();
+                }}
+                disabled={deletePhoto.isPending}
+                className="text-white/80 hover:text-red-400 transition-colors p-1"
+                data-testid="button-delete-story"
+                title="Delete this story"
+              >
+                <Trash2 className="w-5 h-5 drop-shadow" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-white/80 hover:text-white transition-colors p-1"
+              data-testid="button-close-story"
+            >
+              <X className="w-6 h-6 drop-shadow" />
+            </button>
+          </div>
         </div>
 
         {/* Caption */}
@@ -786,11 +839,16 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
                   {post.author?.name}
                 </button>
               )}
-              {isAdminPost && (
-                <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
-                  ✦ OFFICIAL
-                </span>
-              )}
+              {isAdminPost ? (
+                <>
+                  <VerifiedBadge size="sm" gold />
+                  <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
+                    ✦ OFFICIAL
+                  </span>
+                </>
+              ) : (post.author as any)?.isVerified ? (
+                <VerifiedBadge size="xs" />
+              ) : null}
             </div>
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <TimeAgo date={post.createdAt!} />

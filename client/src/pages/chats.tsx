@@ -4,7 +4,7 @@ import { useConversations, useMessages, useSendMessage, useGetOrCreateConversati
 import { useCreateGroup, useUpdateGroup, useRemoveGroupMember, useLeaveGroup, useGroupByToken, useJoinGroup } from "@/hooks/use-groups";
 import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
-import { Avatar, isOnline, LinkedText } from "@/components/ui/shared";
+import { Avatar, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
 import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2 } from "lucide-react";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -169,6 +169,7 @@ export default function ChatsPage() {
                       <div className={`font-bold truncate text-sm flex items-center gap-1 ${hasUnread && !isActive ? "text-primary" : ""}`}>
                         {displayName || "Unknown"}
                         {isGroup && <Users className="w-3 h-3 shrink-0 opacity-50" />}
+                        {!isGroup && conv.otherUser?.isVerified && <VerifiedBadge size="xs" />}
                       </div>
                       <div className={`text-xs truncate ${isActive ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                         {displaySub}
@@ -360,7 +361,10 @@ function ActiveChat({
           >
             <Avatar url={otherUser.profilePicture} name={otherUser.name || "U"} size="sm" online={isOnline(otherUser?.lastSeen)} />
             <div className="text-left min-w-0">
-              <div className="font-bold hover:text-primary transition-colors truncate">{otherUser.name}</div>
+              <div className="font-bold hover:text-primary transition-colors truncate flex items-center gap-1">
+                {otherUser.name}
+                {(otherUser as any).isVerified && <VerifiedBadge size="xs" />}
+              </div>
               <div className="text-xs text-muted-foreground truncate">@{otherUser.username} · tap to view profile</div>
             </div>
           </button>

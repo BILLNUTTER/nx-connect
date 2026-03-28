@@ -303,6 +303,11 @@ export const api = {
       path: '/api/admin/profile' as const,
       input: z.object({ profilePicture: z.string().optional(), name: z.string().optional() }),
       responses: { 200: userSchema }
+    },
+    verifyUser: {
+      method: 'PATCH' as const,
+      path: '/api/admin/users/:id/verify' as const,
+      responses: { 200: userSchema }
     }
   },
   search: {
@@ -343,6 +348,16 @@ export const api = {
       responses: {
         200: z.object({ hasPosted: z.boolean(), photo: dailyPhotoSchema.optional() }),
         401: errorSchemas.unauthorized,
+      }
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/photos/:id' as const,
+      responses: {
+        200: z.object({ success: z.boolean() }),
+        401: errorSchemas.unauthorized,
+        403: errorSchemas.unauthorized,
+        404: errorSchemas.notFound,
       }
     },
   }

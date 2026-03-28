@@ -12,6 +12,7 @@ export const userSchema = z.object({
   profilePicture: z.string().optional(),
   profilePhoto: z.string().optional(),
   isAdmin: z.boolean().default(false),
+  isVerified: z.boolean().default(false),
   isRestricted: z.boolean().optional(),
   status: z.enum(["active", "restricted"]).default("active"),
   friends: z.array(z.string()).default([]),

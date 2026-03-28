@@ -4,7 +4,7 @@ import { usePost, useLikePost, useComments, useCreateComment, useDeletePost, use
 import { useFriends } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox } from "@/components/ui/shared";
+import { Card, Button, Avatar, TimeAgo, isOnline, LinkedText, PhotoLightbox, VerifiedBadge } from "@/components/ui/shared";
 import { ArrowLeft, Heart, MessageCircle, Send, MessageSquare, Trash2, EyeOff, Eye, CornerDownRight, Download, Pencil, Check, MoreHorizontal } from "lucide-react";
 
 export default function PostPage() {
@@ -135,11 +135,16 @@ export default function PostPage() {
                     {post.author?.name}
                   </button>
                 )}
-                {isAdminPost && (
-                  <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
-                    ✦ OFFICIAL
-                  </span>
-                )}
+                {isAdminPost ? (
+                  <>
+                    <VerifiedBadge size="sm" gold />
+                    <span className="px-2 py-0.5 text-[10px] bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 rounded-full font-bold border border-amber-300 dark:border-amber-600 flex items-center gap-0.5">
+                      ✦ OFFICIAL
+                    </span>
+                  </>
+                ) : (post.author as any)?.isVerified ? (
+                  <VerifiedBadge size="sm" />
+                ) : null}
               </div>
               <div className="text-xs text-muted-foreground flex items-center gap-1">
                 @{isAdminPost ? "nx-connect" : post.author?.username} · <TimeAgo date={post.createdAt!} />

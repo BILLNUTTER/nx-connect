@@ -3,8 +3,8 @@ import { useAdminStats, useAdminUsers, useAdminPasswordRequests, useAdminActions
 import { setAdminKey as persistAdminKey, apiFetch } from "@/lib/api";
 import { useUserPosts } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, Button, Input, Avatar, TimeAgo, isOnline, LinkedText } from "@/components/ui/shared";
-import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock, Camera, X } from "lucide-react";
+import { Card, Button, Input, Avatar, TimeAgo, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
+import { ShieldAlert, Users, CheckCircle, Ban, BellRing, ArrowLeft, Heart, Copy, Send, FileText, Trash2, Globe, Lock, Camera, X, BadgeCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { User, Post } from "@shared/schema";
 
@@ -423,7 +423,7 @@ function PasswordRequests() {
 
 function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) {
   const { data: users } = useAdminUsers();
-  const { restrictUser, reactivateUser } = useAdminActions();
+  const { restrictUser, reactivateUser, verifyUser } = useAdminActions();
 
   return (
     <Card>
@@ -441,7 +441,10 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
           >
             <Avatar url={u.profilePicture} name={u.name || "U"} online={isOnline((u as any).lastSeen)} />
             <div className="flex-1 min-w-0">
-              <div className="font-bold truncate">{u.name}</div>
+              <div className="font-bold truncate flex items-center gap-1">
+                {u.name}
+                {(u as any).isVerified && <VerifiedBadge size="xs" />}
+              </div>
               <div className="text-sm text-muted-foreground">@{u.username} · {u.email}</div>
               {u.phone && <div className="text-xs text-muted-foreground font-mono">{u.phone}</div>}
             </div>
@@ -451,7 +454,17 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
               {u.status?.toUpperCase()}
             </span>
             {u.id && (
-              <div onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => verifyUser.mutate(u.id!)}
+                  title={(u as any).isVerified ? "Remove verification" : "Grant verification badge"}
+                  data-testid={`button-verify-${u.id}`}
+                  className={(u as any).isVerified ? "border-blue-400 text-blue-500" : "text-muted-foreground"}
+                >
+                  <BadgeCheck className="w-4 h-4" />
+                </Button>
                 {u.status === "active" ? (
                   <Button variant="destructive" size="sm" onClick={() => restrictUser.mutate(u.id!)} data-testid={`button-restrict-${u.id}`}>
                     <Ban className="w-4 h-4 mr-1" /> Suspend
@@ -471,7 +484,7 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
 }
 
 function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
-  const { sendNotification, sendChat, restrictUser, reactivateUser, adminDeletePost, deleteUser } = useAdminActions();
+  const { sendNotification, sendChat, restrictUser, reactivateUser, adminDeletePost, deleteUser, verifyUser } = useAdminActions();
   const { toast } = useToast();
   const [chatMsg, setChatMsg] = useState("");
   const [alertMsg, setAlertMsg] = useState("");
@@ -549,7 +562,10 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
         <div className="flex items-start gap-6">
           <Avatar url={user.profilePicture} name={user.name || "U"} size="xl" />
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold">{user.name}</h2>
+            <h2 className="text-2xl font-bold flex items-center gap-2">
+              {user.name}
+              {(user as any).isVerified && <VerifiedBadge size="md" />}
+            </h2>
             <p className="text-muted-foreground">@{user.username}</p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
               <div className="bg-secondary rounded-xl p-3">
@@ -573,6 +589,19 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
             <span className={`px-4 py-2 rounded-full text-sm font-bold ${user.status === "active" ? "bg-green-500/10 text-green-500" : "bg-destructive/10 text-destructive"}`}>
               {user.status?.toUpperCase()}
             </span>
+            {user.id && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => verifyUser.mutate(user.id!)}
+                disabled={verifyUser.isPending}
+                className={(user as any).isVerified ? "border-blue-400 text-blue-500 bg-blue-50 dark:bg-blue-950/20" : "text-muted-foreground"}
+                data-testid="button-verify-user-detail"
+              >
+                <BadgeCheck className="w-4 h-4 mr-1" />
+                {(user as any).isVerified ? "Remove Verified" : "Grant Verified"}
+              </Button>
+            )}
             {user.id ? (
               user.status === "active" ? (
                 <Button variant="destructive" size="sm" onClick={handleSuspend} data-testid="button-suspend-user">

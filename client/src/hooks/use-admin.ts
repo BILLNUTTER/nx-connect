@@ -154,5 +154,14 @@ export function useAdminActions() {
     },
   });
 
-  return { restrictUser, reactivateUser, deleteUser, changePassword, sendNotification, resolvePassword, sendChat, createAdminPost, adminDeletePost };
+  const verifyUser = useMutation({
+    mutationFn: async (id: string) => {
+      const url = buildUrl(api.admin.verifyUser.path, { id });
+      const data = await apiFetch(url, { method: "PATCH" });
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.admin.users.path] }),
+  });
+
+  return { restrictUser, reactivateUser, deleteUser, changePassword, sendNotification, resolvePassword, sendChat, createAdminPost, adminDeletePost, verifyUser };
 }
