@@ -53,6 +53,9 @@ export async function registerRoutes(
     console.warn('[cleanup] Test user removal skipped:', e);
   }
 
+  // Health check for deployment platforms
+  app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
   // Auth Routes
   app.post(api.auth.signup.path, async (req: Request, res: Response) => {
     try {
