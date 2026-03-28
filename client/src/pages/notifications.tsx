@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from "@/hooks/use-notifications";
 import { useAcceptFriendRequest } from "@/hooks/use-users";
 import { Card, Button, TimeAgo, Avatar, isOnline } from "@/components/ui/shared";
-import { Bell, Heart, MessageCircle, UserPlus, Info, Check, CheckCheck, ExternalLink } from "lucide-react";
+import { Bell, Heart, MessageCircle, UserPlus, Info, Check, CheckCheck, ExternalLink, Camera } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function NotificationsPage() {
@@ -27,8 +27,20 @@ export default function NotificationsPage() {
   const getPostSnippet = (notif: any) => {
     const p = notif.postId;
     if (!p || typeof p === "string") return null;
-    return p.content ? String(p.content).slice(0, 60) + (p.content.length > 60 ? "…" : "") : null;
+    const content = p.content ? String(p.content) : "";
+    if (p.imageUrl && (content === "📷" || content.trim() === "")) return null;
+    return content.slice(0, 60) + (content.length > 60 ? "…" : "") || null;
   };
+
+  const getPostImageUrl = (notif: any) => {
+    const p = notif.postId;
+    if (!p || typeof p === "string") return null;
+    return p.imageUrl || null;
+  };
+
+  const isProfileUpdate = (notif: any) =>
+    notif.type === "friend_post" &&
+    notif.content?.toLowerCase().includes("profile picture");
 
   const handleNotifClick = (notif: any) => {
     if (!notif.read) markRead.mutate(notif.id);
@@ -100,9 +112,11 @@ export default function NotificationsPage() {
           const isFriendRequest = notif.type === "friend_request";
           const isFriendSuggestion = notif.type === "friend_suggestion";
           const isPostNotif = notif.type === "like" || notif.type === "comment" || notif.type === "friend_post";
+          const isPfpUpdate = isProfileUpdate(notif);
           const senderId = getSenderId(notif);
           const postId = getPostId(notif);
           const postSnippet = getPostSnippet(notif);
+          const postImageUrl = getPostImageUrl(notif);
           const senderObj = typeof (notif as any).senderId === "object" ? (notif as any).senderId : null;
           const isClickable = (isPostNotif && postId) || notif.type === "friend_accept" || notif.type === "friend_request" || isFriendSuggestion;
 
@@ -120,7 +134,9 @@ export default function NotificationsPage() {
               data-testid={`notification-item-${notif.id}`}
             >
               <div className="p-2.5 bg-background rounded-full shadow-sm border border-border/50 shrink-0">
-                {icons[notif.type as keyof typeof icons]}
+                {isPfpUpdate
+                  ? <Camera className="w-5 h-5 text-primary" />
+                  : icons[notif.type as keyof typeof icons]}
               </div>
 
               {senderObj && (
@@ -132,7 +148,18 @@ export default function NotificationsPage() {
                   {notif.content}
                 </p>
 
-                {postSnippet && (
+                {postImageUrl && (
+                  <div className="mt-2 rounded-xl overflow-hidden border border-border/40 max-w-[220px]">
+                    <img
+                      src={postImageUrl}
+                      alt="Photo"
+                      className="w-full h-32 object-cover"
+                      data-testid={`img-notif-photo-${notif.id}`}
+                    />
+                  </div>
+                )}
+
+                {postSnippet && !postImageUrl && (
                   <div className="mt-1.5 px-3 py-1.5 bg-secondary/60 rounded-lg border border-border/40 text-xs text-muted-foreground italic truncate">
                     "{postSnippet}"
                   </div>

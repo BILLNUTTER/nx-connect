@@ -941,7 +941,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
             <img
               src={(post as any).imageUrl}
               alt="Post"
-              className="w-full object-contain cursor-pointer"
+              className="w-full max-h-[520px] object-cover cursor-pointer"
               onClick={() => setLightboxSrc((post as any).imageUrl)}
               data-testid={`button-open-photo-${post.id}`}
             />

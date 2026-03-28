@@ -43,7 +43,7 @@ async function getUserMap(ids: string[], fields?: (keyof typeof users)[]) {
 async function getPostMap(ids: string[]) {
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return {} as Record<string, any>;
-  const rows = await db.select({ id: posts.id, content: posts.content })
+  const rows = await db.select({ id: posts.id, content: posts.content, imageUrl: posts.imageUrl })
     .from(posts).where(inArray(posts.id, unique));
   return Object.fromEntries(rows.map(r => [r.id, r])) as Record<string, any>;
 }
