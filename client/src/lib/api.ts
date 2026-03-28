@@ -22,21 +22,24 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   }
 
   const res = await fetch(url, { ...options, headers });
-  
-  if (res.status === 401) {
-    if (!url.startsWith('/api/admin')) {
-      removeAuthToken();
-      window.dispatchEvent(new Event("auth-expired"));
-    }
-    throw new Error("Unauthorized");
-  }
 
   const contentType = res.headers.get("content-type");
   const isJson = contentType && contentType.includes("application/json");
-  
+
   if (!res.ok) {
     const errorData = isJson ? await res.json() : await res.text();
-    throw new Error(errorData.message || errorData || "An error occurred");
+    const message = (typeof errorData === "object" ? errorData?.message : errorData) || "An error occurred";
+
+    if (res.status === 401) {
+      // Only clear auth state for authenticated API calls, not for login attempts
+      const isAuthAttempt = url === '/api/auth/login' || url === '/api/auth/signup';
+      if (!isAuthAttempt && !url.startsWith('/api/admin')) {
+        removeAuthToken();
+        window.dispatchEvent(new Event("auth-expired"));
+      }
+    }
+
+    throw new Error(message);
   }
 
   if (res.status === 204) return null;
