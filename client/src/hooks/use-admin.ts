@@ -143,5 +143,16 @@ export function useAdminActions() {
     },
   });
 
-  return { restrictUser, reactivateUser, changePassword, sendNotification, resolvePassword, sendChat, createAdminPost, adminDeletePost };
+  const deleteUser = useMutation({
+    mutationFn: async (id: string) => {
+      const url = buildUrl(api.admin.deleteUser.path, { id });
+      await apiFetch(url, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.admin.users.path] });
+      queryClient.invalidateQueries({ queryKey: [api.admin.dashboardStats.path] });
+    },
+  });
+
+  return { restrictUser, reactivateUser, deleteUser, changePassword, sendNotification, resolvePassword, sendChat, createAdminPost, adminDeletePost };
 }

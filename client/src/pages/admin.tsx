@@ -471,11 +471,12 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
 }
 
 function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
-  const { sendNotification, sendChat, restrictUser, reactivateUser, adminDeletePost } = useAdminActions();
+  const { sendNotification, sendChat, restrictUser, reactivateUser, adminDeletePost, deleteUser } = useAdminActions();
   const { toast } = useToast();
   const [chatMsg, setChatMsg] = useState("");
   const [alertMsg, setAlertMsg] = useState("");
   const [showActions, setShowActions] = useState(false);
+  const [deleteUserModal, setDeleteUserModal] = useState(false);
 
   const handleSendChat = async () => {
     if (!chatMsg.trim()) return;
@@ -502,6 +503,17 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
   const handleActivate = async () => {
     await reactivateUser.mutateAsync(user.id!);
     toast({ title: "Account activated" });
+  };
+
+  const handleDeleteUser = async () => {
+    try {
+      await deleteUser.mutateAsync(user.id!);
+      toast({ title: "Account deleted", description: `${user.name}'s account and all their data have been permanently removed.` });
+      setDeleteUserModal(false);
+      onBack();
+    } catch {
+      toast({ title: "Delete failed", variant: "destructive" });
+    }
   };
 
   const [deleteModal, setDeleteModal] = useState<{ postId: string } | null>(null);
@@ -574,6 +586,16 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
             ) : (
               <span className="text-xs text-muted-foreground">Legacy account</span>
             )}
+            {user.id && (
+              <Button
+                size="sm"
+                className="bg-black hover:bg-black/80 text-white border border-red-800"
+                onClick={() => setDeleteUserModal(true)}
+                data-testid="button-delete-user"
+              >
+                <Trash2 className="w-4 h-4 mr-1" /> Delete Account
+              </Button>
+            )}
             {user.status === "restricted" && user.phone && (
               <p className="text-xs text-muted-foreground text-right max-w-[180px]">Contact user externally at <strong>{user.phone}</strong> to inform of suspension.</p>
             )}
@@ -635,6 +657,31 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
               <Button variant="outline" className="flex-1" onClick={() => setDeleteModal(null)}>Cancel</Button>
               <Button variant="destructive" className="flex-1" onClick={confirmDeletePost} disabled={adminDeletePost.isPending} data-testid="button-confirm-delete-post">
                 {adminDeletePost.isPending ? "Deleting..." : "Delete & Notify"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteUserModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={() => setDeleteUserModal(false)}>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="relative bg-card border border-destructive/40 rounded-2xl p-6 w-full max-w-sm shadow-2xl z-10" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setDeleteUserModal(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground" data-testid="button-close-delete-user-modal">
+              <X className="w-5 h-5" />
+            </button>
+            <Trash2 className="w-12 h-12 text-destructive mx-auto mb-3" />
+            <h3 className="text-xl font-bold text-center mb-1">Delete Account</h3>
+            <p className="text-sm text-muted-foreground text-center mb-2">
+              You are about to permanently delete <strong>{user.name}</strong>'s account.
+            </p>
+            <p className="text-xs text-destructive/80 bg-destructive/10 rounded-lg p-3 text-center mb-5">
+              This will erase all their posts, messages, comments, notifications, and stories. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setDeleteUserModal(false)} data-testid="button-cancel-delete-user">Cancel</Button>
+              <Button variant="destructive" className="flex-1" onClick={handleDeleteUser} disabled={deleteUser.isPending} data-testid="button-confirm-delete-user">
+                {deleteUser.isPending ? "Deleting..." : "Delete Permanently"}
               </Button>
             </div>
           </div>

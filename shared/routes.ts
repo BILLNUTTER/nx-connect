@@ -210,6 +210,11 @@ export const api = {
       path: '/api/admin/users/:id/reactivate' as const,
       responses: { 200: userSchema }
     },
+    deleteUser: {
+      method: 'DELETE' as const,
+      path: '/api/admin/users/:id' as const,
+      responses: { 200: z.object({ message: z.string() }) }
+    },
     changePassword: {
       method: 'PUT' as const,
       path: '/api/admin/users/:id/password' as const,

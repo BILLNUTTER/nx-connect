@@ -112,9 +112,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.post(api.auth.login.path, async (req: Request, res: Response) => {
     try {
       const input = api.auth.login.input.parse(req.body);
-      const [user] = await db.select().from(users).where(eq(users.username, input.username)).limit(1);
+      const identifier = input.username.trim();
+      const isEmail = identifier.includes('@');
+      const [user] = await db.select().from(users).where(
+        isEmail ? eq(users.email, identifier) : eq(users.username, identifier)
+      ).limit(1);
       if (!user || user.username === 'nx-connect') {
-        return res.status(401).json({ message: "No account found with that username." });
+        return res.status(401).json({ message: "No account found with that username or email." });
       }
       if (user.status === "restricted") {
         return res.status(401).json({ message: "Account suspended. Please contact NX-Connect support on WhatsApp: 0713881613 or 0758891491 for further guidance." });
@@ -897,6 +901,49 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       .where(eq(users.id, req.params.id)).returning();
     if (!user) return res.status(404).json({ message: "User not found" });
     res.status(200).json(safeUser(user));
+  });
+
+  app.delete(api.admin.deleteUser.path, adminOnly, async (req: Request, res: Response) => {
+    const id = req.params.id;
+    const [target] = await db.select({ id: users.id, username: users.username })
+      .from(users).where(eq(users.id, id)).limit(1);
+    if (!target) return res.status(404).json({ message: "User not found" });
+    if (target.username === 'nx-connect') return res.status(400).json({ message: "Cannot delete system account" });
+
+    // Delete all user content
+    const userPostIds = await db.select({ id: posts.id }).from(posts).where(eq(posts.authorId, id));
+    if (userPostIds.length > 0) {
+      await db.delete(comments).where(inArray(comments.postId, userPostIds.map(p => p.id)));
+    }
+    await Promise.all([
+      db.delete(posts).where(eq(posts.authorId, id)),
+      db.delete(comments).where(eq(comments.authorId, id)),
+      db.delete(messages).where(eq(messages.senderId, id)),
+      db.delete(notifications).where(eq(notifications.recipientId, id)),
+      db.delete(notifications).where(eq(notifications.senderId as any, id)),
+      db.delete(dailyPhotos).where(eq(dailyPhotos.authorId, id)),
+      db.delete(forgotPasswords).where(eq(forgotPasswords.userId, id)),
+    ]);
+
+    // Remove from other users' friend arrays
+    await Promise.all([
+      db.update(users).set({ friends: sql`array_remove(${users.friends}, ${id})`, updatedAt: new Date() })
+        .where(sql`${id} = ANY(${users.friends})`),
+      db.update(users).set({ friendRequests: sql`array_remove(${users.friendRequests}, ${id})`, updatedAt: new Date() })
+        .where(sql`${id} = ANY(${users.friendRequests})`),
+      db.update(users).set({ sentRequests: sql`array_remove(${users.sentRequests}, ${id})`, updatedAt: new Date() })
+        .where(sql`${id} = ANY(${users.sentRequests})`),
+    ]);
+
+    // Remove from conversations
+    await db.update(conversations).set({
+      participants: sql`array_remove(${conversations.participants}, ${id})`,
+      unreadBy: sql`array_remove(${conversations.unreadBy}, ${id})`,
+      updatedAt: new Date(),
+    }).where(sql`${id} = ANY(${conversations.participants})`);
+
+    await db.delete(users).where(eq(users.id, id));
+    res.status(200).json({ message: "User deleted successfully" });
   });
 
   app.put(api.admin.changePassword.path, adminOnly, async (req: Request, res: Response) => {

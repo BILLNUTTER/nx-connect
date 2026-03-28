@@ -152,7 +152,7 @@ export default function AuthPage() {
                 )}
 
                 {tab !== "forgot" && (
-                  <Input name="username" placeholder="Username" value={formData.username} onChange={handleChange} required data-testid="input-username" />
+                  <Input name="username" placeholder={tab === "login" ? "Username or Email" : "Username"} value={formData.username} onChange={handleChange} required data-testid="input-username" />
                 )}
 
                 {tab === "forgot" && (
