@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Moon, Sun, ChevronDown, Search, X, FileText, MapPin, Phone, Mail, Instagram } from "lucide-react";
+import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Moon, Sun, ChevronDown, Search, X, FileText, MapPin, Phone, Mail, Instagram, Share2, Check } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useFriendRequests } from "@/hooks/use-users";
@@ -200,8 +200,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { data: friendRequests } = useFriendRequests();
   const { data: conversations } = useConversations();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { isDark, toggle: toggleTheme } = useTheme();
+
+  const handleShare = async () => {
+    const url = window.location.origin;
+    const message = `I found more friends on this app from all around the world. Come join us — it's real enjoyable! 🌍\n\nConnect Without Compromise on NX-Connect.\n${url}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Join me on NX-Connect", text: message, url });
+      } else {
+        await navigator.clipboard.writeText(message);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2500);
+      }
+    } catch {}
+    setMenuOpen(false);
+  };
 
   const unreadNotifCount = notifications?.filter((n) => !n.read).length || 0;
   const pendingRequestCount = friendRequests?.length || 0;
@@ -273,6 +289,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
                     >
                       {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
                       {isDark ? "Light theme" : "Dark theme"}
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors text-sm font-medium"
+                      data-testid="menu-item-share"
+                    >
+                      {shareCopied ? <Check className="w-4 h-4 text-green-500" /> : <Share2 className="w-4 h-4 text-blue-500" />}
+                      {shareCopied ? "Link Copied!" : "Invite Friends"}
                     </button>
                     <div className="border-t border-border/50 my-1.5" />
                     <button
