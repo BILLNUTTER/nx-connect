@@ -925,7 +925,10 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
             className="w-full text-left"
             data-testid={`button-open-post-${post.id}`}
           >
-            {(post.content !== "📷" || !(post as any).imageUrl) && (
+            {(!(post as any).imageUrl || (
+              post.content !== "📷" &&
+              !post.content.toLowerCase().includes("updated their profile picture")
+            )) && (
               <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
                 <LinkedText text={post.content} />
                 {post.updatedAt && post.createdAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 5000 && (
@@ -941,7 +944,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
             <img
               src={(post as any).imageUrl}
               alt="Post"
-              className="w-full max-h-[520px] object-cover cursor-pointer"
+              className="w-full max-h-[380px] object-cover cursor-pointer"
               onClick={() => setLightboxSrc((post as any).imageUrl)}
               data-testid={`button-open-photo-${post.id}`}
             />

@@ -501,7 +501,10 @@ function OwnPostCard({ post, currentUserId, currentUser }: { post: Post; current
           className="w-full text-left"
           data-testid={`button-open-post-${post.id}`}
         >
-          {((post as any).content !== "📷" || !(post as any).imageUrl) && (
+          {(!(post as any).imageUrl || (
+            (post as any).content !== "📷" &&
+            !(post as any).content?.toLowerCase().includes("updated their profile picture")
+          )) && (
             <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground line-clamp-5"><LinkedText text={post.content} /></p>
           )}
         </button>
