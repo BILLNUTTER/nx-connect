@@ -33,6 +33,18 @@ export default function PostPage() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentContent, setEditCommentContent] = useState("");
   const [commentMenuOpen, setCommentMenuOpen] = useState<string | null>(null);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+
+  const getDescendants = (parentId: string, all: any[]): any[] => {
+    const result: any[] = [];
+    const walk = (pid: string) => {
+      const directs = all.filter((c: any) => c.replyTo === pid);
+      for (const d of directs) { result.push(d); walk(d.id); }
+    };
+    walk(parentId);
+    result.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return result;
+  };
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto space-y-4 py-4">
@@ -284,9 +296,13 @@ export default function PostPage() {
             {comments.filter((c: any) => !c.replyTo).map((c: any) => {
               const cAuthorId = c.author?.id || (c.authorId as any)?.id;
               const hasLikedComment = (c.likes || []).includes(user?.id || "");
-              const replies = comments.filter((r: any) => r.replyTo === c.id);
               const isOwnComment = cAuthorId === user?.id;
               const isEditingThis = editingCommentId === c.id;
+              const descendants = getDescendants(c.id, comments || []);
+              const isExpanded = expandedThreads.has(c.id);
+              const shownReplies = descendants.length === 0 ? [] : isExpanded ? descendants : [descendants[descendants.length - 1]];
+              const hiddenCount = descendants.length > 1 && !isExpanded ? descendants.length - 1 : 0;
+              const replyingToThisThread = replyingTo && (replyingTo.id === c.id || descendants.some((d: any) => d.id === replyingTo.id));
               return (
                 <div key={c.id}>
                   <div className="flex gap-3">
@@ -351,10 +367,20 @@ export default function PostPage() {
                       </div>
                     </div>
                   </div>
-                  {/* Replies */}
-                  {replies.length > 0 && (
+                  {/* Reply thread */}
+                  {descendants.length > 0 && (
                     <div className="ml-12 mt-2 space-y-2">
-                      {replies.map((r: any) => {
+                      {hiddenCount > 0 && (
+                        <button
+                          onClick={() => setExpandedThreads(prev => { const next = new Set(prev); next.add(c.id); return next; })}
+                          className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                          data-testid={`button-expand-thread-${c.id}`}
+                        >
+                          <CornerDownRight className="w-3.5 h-3.5" />
+                          View {hiddenCount} more {hiddenCount === 1 ? "reply" : "replies"}
+                        </button>
+                      )}
+                      {shownReplies.map((r: any) => {
                         const rAuthorId = r.author?.id || (r.authorId as any)?.id;
                         const hasLikedReply = (r.likes || []).includes(user?.id || "");
                         return (
@@ -382,15 +408,30 @@ export default function PostPage() {
                                   {r.likes?.length > 0 && <span>{r.likes.length}</span>}
                                   Like
                                 </button>
+                                <button
+                                  onClick={() => { setReplyingTo({ id: r.id, name: r.author?.name || "User" }); setReplyContent(""); setExpandedThreads(prev => { const next = new Set(prev); next.add(c.id); return next; }); }}
+                                  className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+                                  data-testid={`button-reply-reply-${r.id}`}
+                                >
+                                  <CornerDownRight className="w-3 h-3" /> Reply
+                                </button>
                               </div>
                             </div>
                           </div>
                         );
                       })}
+                      {isExpanded && descendants.length > 1 && (
+                        <button
+                          onClick={() => setExpandedThreads(prev => { const next = new Set(prev); next.delete(c.id); return next; })}
+                          className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          Hide replies
+                        </button>
+                      )}
                     </div>
                   )}
-                  {/* Reply input */}
-                  {replyingTo?.id === c.id && (
+                  {/* Reply input — shown at thread bottom for any reply in this thread */}
+                  {replyingToThisThread && (
                     <div className="ml-12 mt-2 flex items-center gap-2">
                       <Avatar url={user?.profilePicture} name={user?.name || "U"} size="sm" />
                       <div className="flex-1 flex items-center bg-secondary rounded-full px-3 py-2 gap-2">
@@ -399,7 +440,7 @@ export default function PostPage() {
                           type="text"
                           value={replyContent}
                           onChange={e => setReplyContent(e.target.value)}
-                          placeholder={`Reply to ${replyingTo.name}...`}
+                          placeholder={`Reply to ${replyingTo!.name}...`}
                           className="flex-1 bg-transparent border-none outline-none text-xs"
                           onKeyDown={e => e.key === "Enter" && handleReplySend()}
                           data-testid="input-reply"
