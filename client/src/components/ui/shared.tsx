@@ -173,23 +173,26 @@ export function PhotoLightbox({ src, alt, onClose }: { src: string; alt?: string
 }
 
 export function VerifiedBadge({ size = "sm", gold = false }: { size?: "xs" | "sm" | "md"; gold?: boolean }) {
-  const sizeMap = { xs: 12, sm: 16, md: 20 };
+  const sizeMap = { xs: 13, sm: 17, md: 22 };
   const px = sizeMap[size];
   const bg = gold ? "#F59E0B" : "#1877F2";
   return (
     <svg
       width={px}
       height={px}
-      viewBox="0 0 20 20"
+      viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className="shrink-0 inline-block"
       title={gold ? "Official NX-Connect account" : "Verified account"}
       aria-label={gold ? "Official account" : "Verified account"}
     >
-      <circle cx="10" cy="10" r="10" fill={bg} />
+      <polygon
+        points="12,2 14.3,6.5 19.1,4.9 17.5,9.7 22,12 17.5,14.3 19.1,19.1 14.3,17.5 12,22 9.7,17.5 4.9,19.1 6.5,14.3 2,12 6.5,9.7 4.9,4.9 9.7,6.5"
+        fill={bg}
+      />
       <path
-        d="M6 10.5L8.5 13L14 7.5"
+        d="M8.5 12.5L11 15L16 9.5"
         stroke="white"
         strokeWidth="2"
         strokeLinecap="round"

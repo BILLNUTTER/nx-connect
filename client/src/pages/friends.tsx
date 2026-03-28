@@ -2,9 +2,10 @@ import { useState, useCallback, useRef } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, isOnline } from "@/components/ui/shared";
-import { UserPlus, UserCheck, UserMinus, MessageSquare, Search, X } from "lucide-react";
+import { UserPlus, UserCheck, UserMinus, MessageSquare, Search, X, Link2, Users } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import { apiFetch } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 import type { User } from "@shared/schema";
 
 export default function FriendsPage() {
@@ -54,10 +55,18 @@ function DiscoverTab() {
   const { data: suggestedUsers, isLoading } = useDiscoverUsers();
   const { data: currentUser } = useAuthUser();
   const sendReq = useSendFriendRequest();
+  const { toast } = useToast();
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[] | null>(null);
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleCopyInvite = () => {
+    const link = window.location.origin;
+    navigator.clipboard.writeText(link).then(() => {
+      toast({ title: "Link copied!", description: "Share it with friends to invite them to NX-Connect." });
+    });
+  };
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q);
@@ -142,7 +151,33 @@ function DiscoverTab() {
 
       {!isSearchMode && isLoading && <div className="col-span-full text-center py-10">Loading suggestions...</div>}
       {!isSearchMode && !isLoading && displayUsers.length === 0 && (
-        <div className="col-span-full text-center py-10 text-muted-foreground">No new people to discover right now. Try searching above!</div>
+        <div className="col-span-full flex flex-col items-center py-12 px-4 gap-5">
+          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <Users className="w-10 h-10 text-primary" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-bold mb-1">No one new to discover</h3>
+            <p className="text-muted-foreground text-sm max-w-xs">
+              It looks like you already know everyone here! Invite your friends to join NX-Connect.
+            </p>
+          </div>
+          <div className="w-full max-w-sm bg-secondary/60 rounded-2xl p-4 flex items-center gap-3 border border-border">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground mb-0.5 font-medium">Invite link</p>
+              <p className="text-sm font-mono truncate text-foreground">{window.location.origin}</p>
+            </div>
+            <Button
+              onClick={handleCopyInvite}
+              size="sm"
+              className="shrink-0 gap-1.5"
+              data-testid="button-copy-invite-link"
+            >
+              <Link2 className="w-4 h-4" />
+              Copy Link
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">or try searching for someone above</p>
+        </div>
       )}
       {searching && <div className="col-span-full text-center py-10 text-muted-foreground text-sm">Searching...</div>}
       {!searching && displayUsers.map(renderUser)}
