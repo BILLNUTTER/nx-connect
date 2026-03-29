@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { useEffect, memo } from "react";
+import { useEffect, memo, lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -15,12 +15,15 @@ import ChatsPage from "./pages/chats";
 import NotificationsPage from "./pages/notifications";
 import ProfilePage from "./pages/profile";
 
-import { lazy, Suspense } from "react";
 const LandingPage = lazy(() => import("./pages/landing"));
 const AuthPage = lazy(() => import("./pages/auth"));
 const UserProfilePage = lazy(() => import("./pages/user-profile"));
 const PostPage = lazy(() => import("./pages/post"));
 const AdminDashboard = lazy(() => import("./pages/admin"));
+
+// Eagerly preload sub-pages so first navigation is instant
+import("./pages/post");
+import("./pages/user-profile");
 
 const Spinner = () => (
   <div className="flex items-center justify-center min-h-[40vh]">
@@ -86,17 +89,14 @@ function Router() {
 
   if (location === "/" || location === "/auth") return null;
 
-  if (/^\/profile\/.+/.test(location)) {
-    return <Suspense fallback={<Spinner />}><UserProfilePage /></Suspense>;
-  }
-  if (/^\/post\/.+/.test(location)) {
-    return <Suspense fallback={<Spinner />}><PostPage /></Suspense>;
-  }
-
+  const isUserProfile = /^\/profile\/.+/.test(location);
+  const isPost = /^\/post\/.+/.test(location);
+  const isSubPage = isUserProfile || isPost;
   const isTab = TAB_PATHS.some(
     (p) => location === p || location.startsWith(p + "/") || location.startsWith(p + "?")
   );
-  if (!isTab) {
+
+  if (!isSubPage && !isTab) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-4">
         <h1 className="text-6xl font-display font-bold text-primary mb-4">404</h1>
@@ -108,7 +108,21 @@ function Router() {
     );
   }
 
-  return <KeepAlivePages location={location} />;
+  return (
+    <>
+      {/* Always keep tab pages mounted — just hidden on sub-pages so state is preserved */}
+      <div className={isSubPage ? "hidden" : ""}>
+        <KeepAlivePages location={location} />
+      </div>
+
+      {/* Sub-pages render inline on top when active */}
+      {isSubPage && (
+        <Suspense fallback={<Spinner />}>
+          {isUserProfile ? <UserProfilePage /> : <PostPage />}
+        </Suspense>
+      )}
+    </>
+  );
 }
 
 function App() {
