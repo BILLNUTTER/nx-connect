@@ -107,7 +107,7 @@ export function useEditMessage() {
     },
     onSuccess: (updated: any) => {
       queryClient.setQueryData([api.chats.messages.path, updated.conversationId], (old: any[]) =>
-        Array.isArray(old) ? old.map(m => m.id === updated.id ? { ...m, content: updated.content, updatedAt: updated.updatedAt } : m) : old
+        Array.isArray(old) ? old.map(m => m.id === updated.id ? { ...m, content: updated.content, isEdited: true } : m) : old
       );
     },
   });

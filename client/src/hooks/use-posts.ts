@@ -226,10 +226,10 @@ export function useEditPost() {
     onSuccess: (updated: any) => {
       if (updated?.id) {
         queryClient.setQueryData([api.posts.get.path, updated.id], (old: any) =>
-          old ? { ...old, content: updated.content, updatedAt: updated.updatedAt } : old
+          old ? { ...old, content: updated.content, isEdited: true } : old
         );
         queryClient.setQueryData([api.posts.list.path], (old: any) =>
-          Array.isArray(old) ? old.map((p: any) => p.id === updated.id ? { ...p, content: updated.content, updatedAt: updated.updatedAt } : p) : old
+          Array.isArray(old) ? old.map((p: any) => p.id === updated.id ? { ...p, content: updated.content, isEdited: true } : p) : old
         );
       }
       queryClient.invalidateQueries({ queryKey: ["/api/users/posts"] });

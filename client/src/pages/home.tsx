@@ -931,7 +931,7 @@ function PostItem({ post, currentUserId, isAdmin }: { post: Post; currentUserId?
             )) && (
               <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
                 <LinkedText text={post.content} />
-                {post.updatedAt && post.createdAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 5000 && (
+                {(post as any).isEdited && (
                   <span className="text-[10px] text-muted-foreground/60 ml-1">(edited)</span>
                 )}
               </p>

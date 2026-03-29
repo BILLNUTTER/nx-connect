@@ -57,6 +57,7 @@ export const postSchema = z.object({
   isAdminPost: z.boolean().optional(),
   imageUrl: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
+  isEdited: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();
@@ -86,6 +87,7 @@ export const commentSchema = z.object({
   replyTo: z.string().nullable().optional(),
   likes: z.array(z.string()).default([]),
   content: z.string(),
+  isEdited: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();
@@ -107,6 +109,7 @@ export const messageSchema = z.object({
     profilePicture: z.string().optional(),
   }).optional(),
   readBy: z.array(z.string()).optional(),
+  isEdited: z.boolean().optional(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional(),
 }).passthrough();

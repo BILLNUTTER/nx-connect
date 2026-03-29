@@ -722,7 +722,7 @@ function ActiveChat({
                   <span className="text-[10px] text-muted-foreground">
                     {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : ""}
                   </span>
-                  {msg.updatedAt && msg.createdAt && new Date(msg.updatedAt).getTime() - new Date(msg.createdAt).getTime() > 5000 && (
+                  {(msg as any).isEdited && (
                     <span className="text-[10px] text-muted-foreground/60 italic">edited</span>
                   )}
                   {isMe && !isGroup && (

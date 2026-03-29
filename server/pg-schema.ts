@@ -30,6 +30,7 @@ export const posts = pgTable("posts", {
   isAdminPost: boolean("is_admin_post").notNull().default(false),
   imageUrl: text("image_url"),
   expiresAt: timestamp("expires_at"),
+  isEdited: boolean("is_edited").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -41,6 +42,7 @@ export const comments = pgTable("comments", {
   content: text("content").notNull(),
   replyTo: text("reply_to"),
   likes: text("likes").array().notNull().default(sql`'{}'::text[]`),
+  isEdited: boolean("is_edited").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -55,6 +57,7 @@ export const messages = pgTable("messages", {
   replyTo: text("reply_to"),
   readBy: text("read_by").array().notNull().default(sql`'{}'::text[]`),
   expiresAt: timestamp("expires_at"),
+  isEdited: boolean("is_edited").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

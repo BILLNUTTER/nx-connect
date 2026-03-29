@@ -233,7 +233,7 @@ export default function PostPage() {
           (post.content !== "📷" || !(post as any).imageUrl) && (
             <p className="text-xl leading-relaxed whitespace-pre-wrap mb-4" data-testid="text-post-content">
               <LinkedText text={post.content} />
-              {post.updatedAt && post.createdAt && new Date(post.updatedAt).getTime() - new Date(post.createdAt).getTime() > 5000 && (
+              {(post as any).isEdited && (
                 <span className="text-xs text-muted-foreground/60 ml-2">(edited)</span>
               )}
             </p>
@@ -317,7 +317,7 @@ export default function PostPage() {
                             {(c.author as any)?.isVerified && <VerifiedBadge size="xs" />}
                           </button>
                           <span className="text-xs text-muted-foreground"><TimeAgo date={c.createdAt!} /></span>
-                          {c.updatedAt && c.createdAt && new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 5000 && (
+                          {(c as any).isEdited && (
                             <span className="text-[10px] text-muted-foreground/60">(edited)</span>
                           )}
                           {isOwnComment && !isEditingThis && (
