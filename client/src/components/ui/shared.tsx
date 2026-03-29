@@ -1,6 +1,91 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { formatDistanceToNow } from "date-fns";
+import { useLocation } from "wouter";
+import { X, ExternalLink, ChevronLeft, ChevronRight, RotateCw } from "lucide-react";
+
+/* ─── In-App Browser ─────────────────────────────────────────────── */
+const _iabBus = new EventTarget();
+export function openInAppBrowser(url: string) {
+  _iabBus.dispatchEvent(new CustomEvent("iab:open", { detail: url }));
+}
+
+export function InAppBrowser() {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
+  const [histIdx, setHistIdx] = useState(-1);
+
+  useEffect(() => {
+    const h = (e: Event) => {
+      const next = (e as CustomEvent<string>).detail;
+      setUrl(next);
+      setLoading(true);
+      setHistory([next]);
+      setHistIdx(0);
+    };
+    _iabBus.addEventListener("iab:open", h);
+    return () => _iabBus.removeEventListener("iab:open", h);
+  }, []);
+
+  if (!url) return null;
+
+  const goBack = () => {
+    if (histIdx > 0) { setHistIdx(histIdx - 1); setUrl(history[histIdx - 1]); setLoading(true); }
+  };
+  const goForward = () => {
+    if (histIdx < history.length - 1) { setHistIdx(histIdx + 1); setUrl(history[histIdx + 1]); setLoading(true); }
+  };
+  const refresh = () => { setLoading(true); setUrl(u => u ? u + " " : u); setTimeout(() => setUrl(u => u?.trim() ?? u), 0); };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex flex-col bg-background">
+      {/* Top bar */}
+      <div className="flex items-center gap-1.5 px-2 py-2.5 border-b border-border bg-card/90 backdrop-blur-sm shrink-0">
+        <button
+          onClick={() => { setUrl(null); setHistory([]); setHistIdx(-1); }}
+          className="p-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          title="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+        <button onClick={goBack} disabled={histIdx <= 0} className="p-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground disabled:opacity-30" title="Back">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button onClick={goForward} disabled={histIdx >= history.length - 1} className="p-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground disabled:opacity-30" title="Forward">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <div className="flex-1 min-w-0 bg-secondary/50 rounded-lg px-3 py-1.5">
+          <span className="text-xs text-muted-foreground truncate block">{url}</span>
+        </div>
+        <button onClick={refresh} className="p-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground" title="Refresh">
+          <RotateCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+        <a href={url} target="_blank" rel="noopener noreferrer" className="p-2 rounded-xl hover:bg-secondary transition-colors text-muted-foreground" title="Open in browser">
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+      {/* Loading spinner overlay */}
+      {loading && (
+        <div className="absolute inset-x-0 bottom-0 top-[53px] flex flex-col items-center justify-center bg-background z-10 gap-3">
+          <div className="w-10 h-10 rounded-full border-[3px] border-primary/30 border-t-primary animate-spin" />
+          <span className="text-sm text-muted-foreground">Loading…</span>
+        </div>
+      )}
+      {/* iframe */}
+      <iframe
+        key={url}
+        src={url}
+        className="flex-1 w-full border-none"
+        onLoad={() => setLoading(false)}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+        title="In-app browser"
+        referrerPolicy="no-referrer"
+      />
+    </div>,
+    document.body
+  );
+}
 
 export function isOnline(lastSeen?: string | Date | null): boolean {
   if (!lastSeen) return false;
@@ -92,6 +177,23 @@ export function LinkedText({ text, className, linkClassName }: {
   className?: string;
   linkClassName?: string;
 }) {
+  const [, setLocation] = useLocation();
+
+  const handleLinkClick = (e: React.MouseEvent, href: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const parsed = new URL(href);
+      if (parsed.host === window.location.host) {
+        // Internal link — navigate within the SPA
+        setLocation(parsed.pathname + parsed.search + parsed.hash);
+        return;
+      }
+    } catch {/* malformed URL */}
+    // External link — open in the in-app browser overlay
+    openInAppBrowser(href);
+  };
+
   const parts = text.split(URL_REGEX);
   return (
     <span className={className}>
@@ -102,10 +204,8 @@ export function LinkedText({ text, className, linkClassName }: {
             <a
               key={i}
               href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className={linkClassName ?? "text-primary underline underline-offset-2 hover:no-underline break-all"}
+              onClick={(e) => handleLinkClick(e, href)}
+              className={linkClassName ?? "text-primary underline underline-offset-2 hover:no-underline break-all cursor-pointer"}
             >
               {part}
             </a>

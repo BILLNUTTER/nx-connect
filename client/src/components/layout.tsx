@@ -256,8 +256,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { href: "/notifications", icon: Bell, label: "Notifications", badge: unreadNotifCount },
   ];
 
+  const isChatRoute = location.startsWith('/chats') || location.startsWith('/friends');
+
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className={`${isChatRoute ? "h-screen overflow-hidden" : "min-h-screen"} flex flex-col bg-background`}>
       <header className="sticky top-0 z-50 glass-panel border-b border-border/50">
         <div className="max-w-4xl mx-auto px-4">
           <div className="h-14 flex items-center gap-3">
@@ -358,7 +360,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className={`flex-1 w-full max-w-4xl mx-auto flex flex-col ${location.startsWith('/chats') || location.startsWith('/friends') ? "overflow-hidden p-4" : "p-4"}`}>
+      <main className={`flex-1 w-full max-w-4xl mx-auto flex flex-col ${isChatRoute ? "overflow-hidden pt-4 px-4" : "p-4"}`}>
         {children}
       </main>
 

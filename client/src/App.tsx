@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { LoadingScreen } from "@/components/ui/loading";
 import { useAuth } from "./hooks/use-auth";
 import { Layout } from "./components/layout";
+import { InAppBrowser } from "@/components/ui/shared";
 
 import HomeFeed from "./pages/home";
 import FriendsPage from "./pages/friends";
@@ -118,6 +119,7 @@ function App() {
           <Router />
         </Layout>
         <Toaster />
+        <InAppBrowser />
       </TooltipProvider>
     </QueryClientProvider>
   );
