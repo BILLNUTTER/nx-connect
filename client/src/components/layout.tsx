@@ -268,7 +268,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isChatRoute = location.startsWith('/chats') || location.startsWith('/friends');
 
   return (
-    <div className={`${isChatRoute ? "h-screen overflow-hidden" : "min-h-screen"} flex flex-col bg-background`}>
+    <div className={`${isChatRoute ? "h-[100dvh] overflow-hidden" : "min-h-screen"} flex flex-col bg-background`}>
       <header className="sticky top-0 z-50 glass-panel border-b border-border/50">
         <div className="max-w-4xl mx-auto px-4">
           <div className="h-14 flex items-center gap-3">

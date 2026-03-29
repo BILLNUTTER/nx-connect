@@ -261,10 +261,25 @@ export default function ChatsPage() {
                   ? `${conv.participants?.length ?? 0} members`
                   : (conv.lastMessage || `@${conv.otherUser?.username}`);
 
+                const prefetchMessages = () => {
+                  if (queryClient.getQueryData([api.chats.messages.path, conv.id])) return;
+                  queryClient.prefetchQuery({
+                    queryKey: [api.chats.messages.path, conv.id],
+                    queryFn: async () => {
+                      const url = buildUrl(api.chats.messages.path, { conversationId: conv.id });
+                      const data = await apiFetch(url);
+                      return parseWithLogging(api.chats.messages.responses[200], data, "chats.messages");
+                    },
+                    staleTime: 60_000,
+                  });
+                };
+
                 return (
                   <button
                     key={conv.id}
                     onClick={() => setActiveConvId(conv.id)}
+                    onMouseEnter={prefetchMessages}
+                    onTouchStart={prefetchMessages}
                     className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-colors text-left ${
                       isActive
                         ? "bg-primary text-white shadow-md shadow-primary/20"
@@ -413,7 +428,6 @@ function ActiveChat({
     const count = messages?.length ?? 0;
     const convChanged = prevConvIdRef.current !== conversationId;
     if (convChanged || count > prevMsgCountRef.current) {
-      // Play received sound when a new incoming message arrives (not on initial load or conv switch)
       if (!convChanged && count > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
         const newest = messages?.[messages.length - 1];
         if (newest && newest.senderId !== currentUserId && !newest.id?.startsWith("optimistic-")) {
@@ -425,6 +439,16 @@ function ActiveChat({
       endRef.current?.scrollIntoView({ behavior: convChanged ? "instant" : "smooth" });
     }
   }, [messages, conversationId]);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => {
+      endRef.current?.scrollIntoView({ behavior: "instant" });
+    };
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
 
   const startRecording = async () => {
     if (recording || recordedAudio) return;
@@ -492,6 +516,7 @@ function ActiveChat({
     setRecordedAudio(null);
     setReplyTo(null);
     sendMessage.mutate({ conversationId, audioUrl: audio, currentUserId });
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: "instant" }), 30);
   };
 
   const handleSend = (e?: React.FormEvent) => {
@@ -501,6 +526,7 @@ function ActiveChat({
     setContent("");
     setReplyTo(null);
     sendMessage.mutate({ conversationId, content: trimmed, replyTo: replyTo?.id, currentUserId });
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: "instant" }), 30);
   };
 
   const handleTouchStart = (e: React.TouchEvent, msg: any) => {

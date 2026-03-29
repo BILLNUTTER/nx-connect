@@ -44,9 +44,8 @@ export function useMessages(conversationId: string | null) {
     },
     enabled: !!conversationId,
     refetchInterval: 2500,
-    staleTime: 2500,
-    gcTime: 15 * 60 * 1000,
-    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
