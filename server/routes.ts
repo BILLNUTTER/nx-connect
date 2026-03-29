@@ -1311,9 +1311,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const userId = (req as any).userId;
     const me = await getUserById(userId);
     const visibleIds = [...(me?.friends || []), userId];
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const now = new Date();
     const photos = await db.select().from(dailyPhotos).where(
-      and(inArray(dailyPhotos.authorId, visibleIds), gte(dailyPhotos.createdAt, since))
+      and(inArray(dailyPhotos.authorId, visibleIds), gt(dailyPhotos.expiresAt, now))
     ).orderBy(desc(dailyPhotos.createdAt));
     const authorMap = await getUserMap(photos.map(p => p.authorId));
     const result = photos.map(p => ({ ...p, author: authorMap[p.authorId] }));

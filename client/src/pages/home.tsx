@@ -85,7 +85,11 @@ function StoriesBar() {
     });
   };
 
-  const friendPhotos = photos?.filter(p => p.author?.id !== user?.id) ?? [];
+  const now = Date.now();
+  const friendPhotos = photos?.filter(p =>
+    p.author?.id !== user?.id &&
+    (!p.expiresAt || new Date(p.expiresAt).getTime() > now)
+  ) ?? [];
 
   const openStories = (photoList: DailyPhoto[], idx: number) => {
     setViewState({ photos: photoList, startIndex: idx });
@@ -186,7 +190,12 @@ function StoryViewer({ photos, startIndex, currentUserId, onClose }: {
 
   const photo = photos[currentIndex];
   const expiresAt = photo?.expiresAt ? new Date(photo.expiresAt) : null;
-  const hoursLeft = expiresAt ? Math.max(0, Math.round((expiresAt.getTime() - Date.now()) / 3600000)) : null;
+  const msLeft = expiresAt ? expiresAt.getTime() - Date.now() : null;
+  const timeLeftLabel = msLeft !== null && msLeft > 0
+    ? msLeft >= 3600000
+      ? `${Math.round(msLeft / 3600000)}h left`
+      : `${Math.max(1, Math.round(msLeft / 60000))}m left`
+    : null;
 
   const goNext = useCallback(() => {
     if (currentIndex < photos.length - 1) {
@@ -291,8 +300,8 @@ function StoryViewer({ photos, startIndex, currentUserId, onClose }: {
             <Avatar url={photo.author?.profilePicture} name={photo.author?.name || "U"} size="sm" online={isOnline((photo.author as any)?.lastSeen)} />
             <div className="text-left">
               <div className="text-white font-semibold text-sm leading-tight drop-shadow">{photo.author?.name}</div>
-              {hoursLeft !== null && (
-                <div className="text-white/60 text-xs">{hoursLeft}h left</div>
+              {timeLeftLabel && (
+                <div className="text-white/60 text-xs">{timeLeftLabel}</div>
               )}
             </div>
           </button>
