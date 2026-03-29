@@ -17,7 +17,7 @@ export default function FriendsPage() {
   const requestCount = requests?.length || 0;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-6">
+    <div className="max-w-4xl mx-auto space-y-6 pb-6 p-4">
       <div className="flex bg-card rounded-2xl p-1 shadow-sm border border-border/50">
         {[
           { id: "discover", label: "Discover" },

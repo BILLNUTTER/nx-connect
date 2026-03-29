@@ -369,7 +369,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className={`flex-1 w-full max-w-4xl mx-auto flex flex-col ${isChatRoute ? "overflow-hidden pt-4 px-4" : "p-4"}`}>
+      <main className={`flex-1 min-h-0 w-full max-w-4xl mx-auto flex flex-col ${isChatRoute ? "overflow-hidden" : "p-4"}`}>
         {children}
       </main>
 

@@ -221,7 +221,7 @@ export default function ChatsPage() {
 
   return (
     <>
-      <div className="flex overflow-hidden -m-4" style={{ height: "calc(100svh - 7rem)" }}>
+      <div className="flex overflow-hidden h-full">
         <div className={`w-full md:w-72 border-r border-border/60 flex flex-col bg-card shrink-0 ${activeConvId ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-border flex items-center justify-between gap-2">
             <h2 className="text-xl font-display font-bold shrink-0">Messages</h2>
