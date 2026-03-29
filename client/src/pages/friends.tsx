@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, isOnline, VerifiedBadge } from "@/components/ui/shared";
@@ -10,11 +10,13 @@ import type { User } from "@shared/schema";
 
 export default function FriendsPage() {
   const search = useSearch();
+  const [, setLocation] = useLocation();
   const params = new URLSearchParams(search);
-  const initialTab = (params.get("tab") as "discover" | "friends" | "requests") || "discover";
-  const [tab, setTab] = useState<"discover" | "friends" | "requests">(initialTab);
+  const tab = (params.get("tab") as "discover" | "friends" | "requests") || "discover";
   const { data: requests } = useFriendRequests();
   const requestCount = requests?.length || 0;
+
+  const setTab = (id: string) => setLocation(`/friends?tab=${id}`);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-6 p-4">
@@ -26,15 +28,15 @@ export default function FriendsPage() {
         ].map(t => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id as any)}
-            className={`relative flex-1 py-3 text-sm font-bold rounded-xl transition-all ${
+            onClick={() => setTab(t.id)}
+            className={`relative flex-1 py-3 text-sm font-bold rounded-xl transition-colors ${
               tab === t.id ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-secondary/50"
             }`}
             data-testid={`tab-${t.id}`}
           >
             {t.label}
             {(t as any).count > 0 && tab !== t.id && (
-              <span className="absolute top-1 right-2 min-w-[18px] h-[18px] bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full px-1">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-destructive text-[10px] font-bold text-white flex items-center justify-center rounded-full px-1 shadow-sm">
                 {(t as any).count > 9 ? "9+" : (t as any).count}
               </span>
             )}
