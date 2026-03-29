@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { Home, Users, MessageCircle, Bell, User as UserIcon, LogOut, Moon, Sun, ChevronDown, Search, X, FileText, MapPin, Phone, Mail, Instagram, Share2, Check } from "lucide-react";
+import { playNotification } from "@/lib/sounds";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useFriendRequests } from "@/hooks/use-users";
@@ -223,6 +224,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const unreadNotifCount = notifications?.filter((n) => !n.read).length || 0;
   const pendingRequestCount = friendRequests?.length || 0;
   const unreadChatCount = (conversations as any[])?.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0) || 0;
+
+  const prevNotifCountRef = useRef(0);
+  useEffect(() => {
+    if (unreadNotifCount > prevNotifCountRef.current) {
+      playNotification();
+    }
+    prevNotifCountRef.current = unreadNotifCount;
+  }, [unreadNotifCount]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {

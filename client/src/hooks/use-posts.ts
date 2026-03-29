@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { apiFetch, parseWithLogging } from "@/lib/api";
 import { z } from "zod";
+import { playLike, playCommentSent } from "@/lib/sounds";
 
 export function usePosts() {
   return useQuery({
@@ -40,6 +41,13 @@ export function useLikePost() {
     onMutate: async (postId: string) => {
       const currentUser = queryClient.getQueryData([api.auth.me.path]) as any;
       const userId = currentUser?.id;
+
+      // Play sound only when liking (not unliking)
+      const currentList = queryClient.getQueryData<any[]>([api.posts.list.path]);
+      const postInList = currentList?.find((p: any) => p.id === postId);
+      if (userId && postInList && !postInList.likes.includes(userId)) {
+        playLike();
+      }
 
       await queryClient.cancelQueries({ queryKey: [api.posts.list.path] });
       await queryClient.cancelQueries({ queryKey: [api.posts.get.path, postId] });
@@ -189,6 +197,7 @@ export function useCreateComment() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [api.comments.list.path, variables.postId] });
+      playCommentSent();
     },
   });
 }

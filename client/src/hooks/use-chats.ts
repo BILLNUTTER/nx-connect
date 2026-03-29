@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { apiFetch, parseWithLogging } from "@/lib/api";
+import { playMessageSent } from "@/lib/sounds";
 
 export { api, buildUrl, apiFetch, parseWithLogging };
 
@@ -65,6 +66,7 @@ export function useSendMessage() {
       return parseWithLogging(api.chats.sendMessage.responses[201], data, "chats.sendMessage");
     },
     onMutate: async ({ conversationId, content, audioUrl, currentUserId }) => {
+      playMessageSent();
       await queryClient.cancelQueries({ queryKey: [api.chats.messages.path, conversationId] });
       const prev = queryClient.getQueryData<any[]>([api.chats.messages.path, conversationId]);
       const optimistic = {

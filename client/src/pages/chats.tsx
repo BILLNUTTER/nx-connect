@@ -6,6 +6,7 @@ import { useFriends } from "@/hooks/use-users";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, isOnline, LinkedText, VerifiedBadge } from "@/components/ui/shared";
 import { Send, MessageSquare, Lock, Users, Plus, Settings, X, Copy, Check, CheckCheck, UserMinus, LogOut, Camera, ChevronLeft, Shield, CornerUpLeft, Clock, Pencil, Trash2, Timer, Mic, Play, Pause } from "lucide-react";
+import { playMessageReceived } from "@/lib/sounds";
 import { useSearch, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -412,6 +413,13 @@ function ActiveChat({
     const count = messages?.length ?? 0;
     const convChanged = prevConvIdRef.current !== conversationId;
     if (convChanged || count > prevMsgCountRef.current) {
+      // Play received sound when a new incoming message arrives (not on initial load or conv switch)
+      if (!convChanged && count > prevMsgCountRef.current && prevMsgCountRef.current > 0) {
+        const newest = messages?.[messages.length - 1];
+        if (newest && newest.senderId !== currentUserId && !newest.id?.startsWith("optimistic-")) {
+          playMessageReceived();
+        }
+      }
       prevMsgCountRef.current = count;
       prevConvIdRef.current = conversationId;
       endRef.current?.scrollIntoView({ behavior: convChanged ? "instant" : "smooth" });
