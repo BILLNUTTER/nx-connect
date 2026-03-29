@@ -111,7 +111,7 @@ function Router() {
   return (
     <>
       {/* Always keep tab pages mounted — just hidden on sub-pages so state is preserved */}
-      <div className={isSubPage ? "hidden" : ""}>
+      <div className={isSubPage ? "hidden" : "flex-1 flex flex-col min-h-0"}>
         <KeepAlivePages location={location} />
       </div>
 
