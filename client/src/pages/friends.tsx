@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useDiscoverUsers, useFriends, useFriendRequests, useSendFriendRequest, useAcceptFriendRequest, useUnfriend, useAuthUser } from "@/hooks/use-users";
 import { useGetOrCreateConversation } from "@/hooks/use-chats";
 import { Card, Button, Avatar, isOnline, VerifiedBadge } from "@/components/ui/shared";
@@ -203,7 +203,7 @@ function FriendsListTab() {
   if (!users?.length) return <div className="col-span-full text-center py-10 text-muted-foreground">You haven't added any friends yet.</div>;
 
   return users.map(user => (
-    <UserCard key={user.id} user={user}>
+    <UserCard key={user.id} user={user as User}>
       <div className="flex gap-2">
         <Button
           size="sm"
@@ -234,8 +234,8 @@ function RequestsTab() {
   if (!users?.length) return <div className="col-span-full text-center py-10 text-muted-foreground">No pending friend requests.</div>;
 
   return users.map(user => (
-    <UserCard key={user.id} user={user}>
-      <Button size="sm" onClick={() => acceptReq.mutate(user.id)} disabled={acceptReq.isPending}>
+    <UserCard key={user.id} user={user as User}>
+      <Button size="sm" onClick={() => acceptReq.mutate(user.id ?? "")} disabled={acceptReq.isPending}>
         <UserCheck className="w-4 h-4 mr-2" /> Accept
       </Button>
     </UserCard>

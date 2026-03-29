@@ -101,19 +101,29 @@ export function Card({ children, className = "", style }: { children: React.Reac
 }
 
 export function Button({ 
-  children, variant = "primary", className = "", ...props 
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "outline" | "ghost" | "destructive" }) {
-  const base = "px-5 py-2.5 rounded-xl font-semibold transition-all duration-200 ease-out active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2";
-  const variants = {
-    primary: "bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-    outline: "border-2 border-border text-foreground hover:border-primary/50 hover:bg-primary/5",
-    ghost: "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
-    destructive: "bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
+  children, variant = "primary", size, className = "", ...props 
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "default" | "secondary" | "outline" | "ghost" | "destructive";
+  size?: "sm" | "md" | "lg" | "icon";
+}) {
+  const base = "rounded-xl font-semibold transition-all duration-200 ease-out active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2";
+  const variants: Record<string, string> = {
+    primary:     "px-5 py-2.5 bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5",
+    default:     "px-5 py-2.5 bg-gradient-to-r from-primary to-accent text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5",
+    secondary:   "px-5 py-2.5 bg-secondary text-secondary-foreground hover:bg-secondary/80",
+    outline:     "px-5 py-2.5 border-2 border-border text-foreground hover:border-primary/50 hover:bg-primary/5",
+    ghost:       "px-5 py-2.5 text-muted-foreground hover:text-foreground hover:bg-secondary/50",
+    destructive: "px-5 py-2.5 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
+  };
+  const sizes: Record<string, string> = {
+    sm:   "!px-3 !py-1.5 text-sm",
+    md:   "!px-5 !py-2.5 text-sm",
+    lg:   "!px-6 !py-3 text-base",
+    icon: "!p-2",
   };
 
   return (
-    <button className={`${base} ${variants[variant]} ${className}`} {...props}>
+    <button className={`${base} ${variants[variant]} ${size ? sizes[size] : ""} ${className}`} {...props}>
       {children}
     </button>
   );
@@ -284,9 +294,9 @@ export function VerifiedBadge({ size = "sm", gold = false }: { size?: "xs" | "sm
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className="shrink-0 inline-block"
-      title={gold ? "Official NX-Connect account" : "Verified account"}
       aria-label={gold ? "Official account" : "Verified account"}
     >
+      <title>{gold ? "Official NX-Connect account" : "Verified account"}</title>
       <polygon
         points="12,2 14.3,6.5 19.1,4.9 17.5,9.7 22,12 17.5,14.3 19.1,19.1 14.3,17.5 12,22 9.7,17.5 4.9,19.1 6.5,14.3 2,12 6.5,9.7 4.9,4.9 9.7,6.5"
         fill={bg}
