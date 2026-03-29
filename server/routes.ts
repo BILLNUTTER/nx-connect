@@ -98,7 +98,42 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           })));
         }
       } catch (notifError) {
-        console.error("Failed to create welcome notifications:", notifError);
+        console.error("Failed to create friend-suggestion notifications:", notifError);
+      }
+
+      // Auto welcome: DM + notification from NX-Connect system account
+      try {
+        const [nxAdmin] = await db.select({ id: users.id }).from(users)
+          .where(eq(users.username, 'nx-connect')).limit(1);
+        if (nxAdmin) {
+          const firstName = input.name.split(' ')[0];
+          const welcomeMsg = `Hey ${firstName}! 😊 Welcome to NX-Connect.\nBring your friends along and earn your Verified Badge ✅\nLet's grow your circle together!`;
+
+          // Create DM conversation between system account and new user
+          const [welcomeConvo] = await db.insert(conversations).values({
+            participants: [nxAdmin.id, user.id],
+            lastMessage: welcomeMsg,
+            lastMessageAt: new Date(),
+          }).returning({ id: conversations.id });
+
+          // Insert the welcome message
+          await db.insert(messages).values({
+            conversationId: welcomeConvo.id,
+            senderId: nxAdmin.id,
+            content: welcomeMsg,
+            isSystem: false,
+          });
+
+          // Welcome notification
+          await db.insert(notifications).values({
+            recipientId: user.id,
+            senderId: nxAdmin.id,
+            type: 'system',
+            content: `Welcome to NX-Connect, ${firstName}! 🎉 Invite your friends and earn a Verified Badge ✅`,
+          });
+        }
+      } catch (welcomeErr) {
+        console.error("Failed to send welcome message:", welcomeErr);
       }
 
       const token = generateToken(user.id);

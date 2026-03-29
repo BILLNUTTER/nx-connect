@@ -486,7 +486,9 @@ function UsersManagement({ onSelectUser }: { onSelectUser: (u: User) => void }) 
 function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
   const { sendNotification, sendChat, restrictUser, reactivateUser, adminDeletePost, deleteUser, verifyUser } = useAdminActions();
   const { toast } = useToast();
-  const [chatMsg, setChatMsg] = useState("");
+  const firstName = (user.name || "there").split(" ")[0];
+  const welcomeTemplate = `Hey ${firstName}! 😊 Welcome to NX-Connect.\nBring your friends along and earn your Verified Badge ✅\nLet's grow your circle together!`;
+  const [chatMsg, setChatMsg] = useState(welcomeTemplate);
   const [alertMsg, setAlertMsg] = useState("");
   const [showActions, setShowActions] = useState(false);
   const [deleteUserModal, setDeleteUserModal] = useState(false);
@@ -648,17 +650,27 @@ function UserDetailView({ user, onBack }: { user: User; onBack: () => void }) {
         </Card>
 
         <Card>
-          <h3 className="font-bold mb-1 flex items-center gap-2"><Send className="w-4 h-4 text-primary" /> Send Chat Message</h3>
-          <p className="text-xs text-muted-foreground mb-3">One-way only — user cannot reply to admin messages.</p>
-          <textarea
-            className="w-full bg-secondary border border-border rounded-xl p-3 text-foreground outline-none focus:border-primary resize-none h-20 text-sm"
-            placeholder="Message to user..."
-            value={chatMsg}
-            onChange={e => setChatMsg(e.target.value)}
-            data-testid="input-user-chat"
-          />
+          <h3 className="font-bold mb-1 flex items-center gap-2"><Send className="w-4 h-4 text-primary" /> Send DM to {user.name?.split(" ")[0]}</h3>
+          <p className="text-xs text-muted-foreground mb-3">One-way only — user cannot reply to admin messages. Edit the template below before sending.</p>
+          <div className="relative">
+            <textarea
+              className="w-full bg-secondary border border-primary/30 rounded-xl p-3 text-foreground outline-none focus:border-primary resize-none text-sm"
+              rows={5}
+              value={chatMsg}
+              onChange={e => setChatMsg(e.target.value)}
+              data-testid="input-user-chat"
+            />
+            <button
+              type="button"
+              onClick={() => setChatMsg(welcomeTemplate)}
+              className="absolute top-2 right-2 text-[10px] text-primary/70 hover:text-primary bg-background border border-border rounded px-1.5 py-0.5 font-medium transition-colors"
+              title="Reset to template"
+            >
+              Reset
+            </button>
+          </div>
           <Button onClick={handleSendChat} disabled={!chatMsg.trim() || sendChat.isPending} className="w-full mt-3" size="sm">
-            <Send className="w-4 h-4 mr-2" /> Send Message
+            <Send className="w-4 h-4 mr-2" /> {sendChat.isPending ? "Sending…" : "Send Message"}
           </Button>
         </Card>
       </div>
