@@ -38,6 +38,12 @@ async function buildAll() {
   console.log("building client...");
   await viteBuild();
 
+  // On Vercel, skip the esbuild server bundle — Vercel compiles api/index.ts itself.
+  if (process.env.VERCEL) {
+    console.log("Vercel environment detected — skipping server bundle.");
+    return;
+  }
+
   console.log("building server...");
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
   const allDeps = [
