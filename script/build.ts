@@ -39,9 +39,23 @@ async function buildAll() {
   console.log("building client...");
   await viteBuild();
 
-  // On Vercel, skip the esbuild server bundle — Vercel compiles api/index.ts itself.
+  // On Vercel, bundle server/vercel-entry.ts → api/index.js so Vercel uses the
+  // pre-built bundle instead of trying to compile TypeScript itself.
+  // All local code (server/*, shared/*) is inlined; npm packages are kept external
+  // so Vercel resolves them from node_modules at runtime.
   if (process.env.VERCEL) {
-    console.log("Vercel environment detected — skipping server bundle.");
+    console.log("Vercel: bundling API function...");
+    await esbuild({
+      entryPoints: ["server/vercel-entry.ts"],
+      platform: "node",
+      bundle: true,
+      format: "esm",
+      outfile: "api/index.js",
+      packages: "external",
+      define: { "process.env.NODE_ENV": '"production"' },
+      logLevel: "info",
+    });
+    console.log("Vercel: API function bundled → api/index.js");
     return;
   }
 
