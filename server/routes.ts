@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import type { Server } from "http";
 import bcrypt from "bcryptjs";
-import { api } from "@shared/routes";
+import { api } from "../shared/routes";
 import { z } from "zod";
 import { db, connectDB } from "./db";
 import {
@@ -51,19 +51,37 @@ async function getPostMap(ids: string[]) {
 // ─── Register Routes ───────────────────────────────────────────────────────────
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-  await connectDB();
+  // In serverless environments the pg pool connects lazily on first query,
+  // so we never block startup on the ping and never call process.exit().
+  if (process.env.VERCEL) {
+    connectDB().catch((e) => console.error("[db] connection check failed:", e));
+  } else {
+    await connectDB();
+  }
 
-  // Seed NX-Connect system account
-  const [nxExists] = await db.select({ id: users.id }).from(users)
-    .where(eq(users.username, 'nx-connect')).limit(1);
-  if (!nxExists) {
-    const hashedPw = await bcrypt.hash('nxconnect-system-' + Date.now(), 10);
-    await db.insert(users).values({
-      name: 'NX-Connect', username: 'nx-connect',
-      email: 'system@nx-connect.internal', phone: '0000000000',
-      password: hashedPw, isAdmin: true, profilePicture: '',
-    });
-    console.log('[seed] NX-Connect system account created.');
+  // Seed NX-Connect system account.
+  // On Vercel (serverless) we fire-and-forget so startup never blocks on DB.
+  const seedNxAccount = async () => {
+    try {
+      const [nxExists] = await db.select({ id: users.id }).from(users)
+        .where(eq(users.username, 'nx-connect')).limit(1);
+      if (!nxExists) {
+        const hashedPw = await bcrypt.hash('nxconnect-system-' + Date.now(), 10);
+        await db.insert(users).values({
+          name: 'NX-Connect', username: 'nx-connect',
+          email: 'system@nx-connect.internal', phone: '0000000000',
+          password: hashedPw, isAdmin: true, profilePicture: '',
+        });
+        console.log('[seed] NX-Connect system account created.');
+      }
+    } catch (e) {
+      console.error('[seed] NX-Connect seed error:', e);
+    }
+  };
+  if (process.env.VERCEL) {
+    seedNxAccount(); // fire-and-forget on serverless
+  } else {
+    await seedNxAccount();
   }
 
   // Health check

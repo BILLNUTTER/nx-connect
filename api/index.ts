@@ -1,11 +1,10 @@
 import express, { type Request, type Response, type NextFunction } from "express";
 import { createServer } from "http";
+import { registerRoutes } from "../server/routes";
 
 let initPromise: Promise<express.Express> | null = null;
 
 async function initApp(): Promise<express.Express> {
-  const { registerRoutes } = await import("../server/routes");
-
   const app = express();
 
   app.use(

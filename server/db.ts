@@ -7,10 +7,16 @@ const connectionString =
   process.env.DATABASE_URL ||
   "postgresql://postgres.vvuqeegvdabuolwzllia:BILLnutter001002@aws-1-eu-central-1.pooler.supabase.com:5432/postgres";
 
+// In serverless environments (Vercel) keep the pool small to avoid exhausting
+// database connection limits across concurrent function invocations.
+const isServerless = !!process.env.VERCEL;
+
 const pool = new Pool({
   connectionString,
   ssl: { rejectUnauthorized: false },
-  max: 10,
+  max: isServerless ? 2 : 10,
+  idleTimeoutMillis: isServerless ? 10_000 : 30_000,
+  connectionTimeoutMillis: 5_000,
 });
 
 export const db = drizzle(pool, { schema });
@@ -21,6 +27,8 @@ export async function connectDB() {
     console.log("PostgreSQL (Supabase) connected successfully.");
   } catch (error) {
     console.error("PostgreSQL connection error:", error);
-    process.exit(1);
+    // Do NOT call process.exit() — it kills serverless workers.
+    // The pool will retry on the next request.
+    throw error;
   }
 }
