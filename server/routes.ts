@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import type { Server } from "http";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { db, connectDB } from "./db";
